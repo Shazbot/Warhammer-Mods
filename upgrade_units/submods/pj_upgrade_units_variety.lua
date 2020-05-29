@@ -27,6 +27,8 @@ cm:add_first_tick_callback(function()
 	add_upgrade("wh2_dlc15_hef_inf_rangers_0", "wh2_main_hef_inf_swordmasters_of_hoeth_0", {8})
 	add_upgrade("wh2_main_hef_inf_spearmen_0", "wh2_main_hef_inf_swordmasters_of_hoeth_0", {8})
 	add_upgrade("wh2_main_hef_cav_ellyrian_reavers_0", "wh2_main_hef_cav_silver_helms_0", {6})
+	add_upgrade("wh2_main_hef_inf_archers_0", "wh2_dlc10_hef_inf_sisters_of_avelorn_0", {8})
+	add_upgrade("wh2_main_hef_inf_archers_1", "wh2_dlc10_hef_inf_sisters_of_avelorn_0", {8})
 
 	add_upgrade("wh_main_dwf_inf_hammerers", "wh_main_dwf_inf_ironbreakers", {5})
 
