@@ -34,6 +34,7 @@ cm:add_first_tick_callback(function()
 
 	add_upgrade("wh2_dlc09_tmb_inf_skeleton_warriors_0", "wh2_dlc09_tmb_inf_nehekhara_warriors_0", {5})
 	add_upgrade("wh2_dlc09_tmb_inf_nehekhara_warriors_0", "wh2_dlc09_tmb_inf_tomb_guard_0", {7})
+	add_upgrade("wh2_dlc09_tmb_inf_skeleton_spearmen_0", "wh2_dlc09_tmb_inf_tomb_guard_1", {7})
 	add_upgrade("wh2_dlc09_tmb_cav_skeleton_horsemen_0", "wh2_dlc09_tmb_cav_nehekhara_horsemen_0", {6})
 
 	add_upgrade("wh_main_vmp_inf_cairn_wraiths", "wh_main_vmp_cav_hexwraiths", {6, no_icon = true})
