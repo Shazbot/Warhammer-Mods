@@ -21,6 +21,9 @@ cm:remove_callback("pj_unit_upgrades_callback_id_2")
 --- Multiply the unit cost with this to get the upgrade cost.
 mod.upgrade_cost_multiplier = 0.33
 
+--- Keep track of number of unit cards selected, since we can't upgrade more than 1 unit at a time.
+mod.num_unit_cards_selected = 0
+
 --- Default cost of a unit for any cost calculations.
 mod.default_unit_cost = 2500
 
@@ -70,12 +73,16 @@ mod.hide_retrain_buttons = function()
 	)
 	if button_group then
 		local index = 1
-		local retrain_button_id = "retrain_button_"..tostring(index)
-		while(button_group:Find(retrain_button_id)) do
-			local retrain = UIComponent(button_group:Find(retrain_button_id))
+		while(true) do
+			local retrain_button_id = "retrain_button_"..tostring(index)
+			local retrain_button_addr = button_group:Find(retrain_button_id)
+			if not retrain_button_addr then
+				break
+			end
+
+			local retrain = UIComponent(retrain_button_addr)
 			retrain:SetVisible(false)
 			index = index + 1
-			retrain_button_id = "retrain_button_"..tostring(index)
 		end
 	end
 end
@@ -267,10 +274,12 @@ mod.is_unit_recruitable_anywhere = function(unit_key)
 	return false
 end
 
+mod.global_rec_cost_formula = function(x) return 1.5*math.max(200, x) end
+mod.local_rec_cost_formula = function(x) return math.max(100, x) end
+mod.default_cost_formula = function(x) return 2*math.max(250, x) end
+
 --- Repeat this to update the UI tooltips.
 mod.update_UI = function()
-	mod.hide_retrain_buttons()
-
 	if not mod.commander_cqi then
 		return
 	end
@@ -317,7 +326,8 @@ mod.update_UI = function()
 	end
 
 	local unit_rank = mod.unit_rank
-	local province_name = commander:region():province_name()
+	local province_name = not commander:region():is_null_interface() and commander:region():province_name()
+	local local_faction_obj = cm:get_faction(cm:get_local_faction(true))
 
 	local unit_key_from = unit_to_upgrade:unit_key()
 	local unit_upgrades = mod.get_unit_upgrades(unit_key_from)
@@ -331,20 +341,20 @@ mod.update_UI = function()
 			local localized_pooled_res = ""
 			if unit_upgrade.pooled_res and unit_upgrade.pooled_res_amount then
 				localized_pooled_res = effect.get_localised_string("pooled_resources_display_name_"..unit_upgrade.pooled_res)
-				local pooled_res = cm:get_faction(cm:get_local_faction(true)):pooled_resource(unit_upgrade.pooled_res)
+				local pooled_res = local_faction_obj:pooled_resource(unit_upgrade.pooled_res)
 				if pooled_res and pooled_res:value() < unit_upgrade.pooled_res_amount then
 					is_pooled_res_adequate = false
 				end
 			end
 
-			local cost_formula = function(x) return 2*math.max(250, x) end
+			local cost_formula = mod.default_cost_formula
 			local upgrade_rank_adjustment = 0
-			if mod.is_unit_recruitable_in_province(unit_key_to, province_name) then
+			if province_name and mod.is_unit_recruitable_in_province(unit_key_to, province_name) then
 				upgrade_rank_adjustment = -2
-				cost_formula = function(x) return math.max(100, x) end
+				cost_formula = mod.local_rec_cost_formula
 			elseif mod.is_unit_recruitable_anywhere(unit_key_to) then
 				upgrade_rank_adjustment = -1
-				cost_formula = function(x) return 1.5*math.max(200, x) end
+				cost_formula = mod.global_rec_cost_formula
 			end
 			local calculated_upgrade_cost = cost_formula(mod.get_upgrade_cost(unit_key_to) - mod.get_upgrade_cost(unit_key_from))
 			-- if there is a flat cost set in the upgrade data use that, otherwise calculate it using a formula
@@ -373,6 +383,10 @@ mod.update_UI = function()
 				end
 			end
 
+			local are_too_many_units_selected = mod.num_unit_cards_selected > 1
+			if are_too_many_units_selected then
+				new_tooltip_text = new_tooltip_text.."\n[[col:red]]You cannot upgrade multiple units at the same time.[[/col]]"
+			end
 			if in_foreign_territory then
 				new_tooltip_text = new_tooltip_text.."\n[[col:red]]You must be in a region you own.[[/col]]"
 			end
@@ -398,6 +412,7 @@ mod.update_UI = function()
 				or not is_near_settlement
 				or not are_funds_adequate
 				or not is_pooled_res_adequate
+				or are_too_many_units_selected
 			then
 				retrain_button:SetState("inactive")
 			else
@@ -587,23 +602,37 @@ mod.update_upgrade_icons = function()
 	local num_agents = mod.get_num_agents()
 	---@type CA_CHAR
 	local char = cm:get_character_by_cqi(mod.commander_cqi)
-	local province_name = char:region():province_name()
+	local province_name = not char:region():is_null_interface() and char:region():province_name()
 	local unit_list = char:military_force():unit_list()
 	local army_size = unit_list:num_items()
 
+	mod.num_unit_cards_selected = 0
+
 	while(true) do
-		local exp = find_uicomponent(
+
+		local land_unit_card = find_uicomponent(
 			core:get_ui_root(),
 			"units_panel",
 			"main_units_panel",
 			"units",
-			"LandUnit "..tostring(unit_index),
+			"LandUnit "..tostring(unit_index)
+		)
+		if not land_unit_card then
+			break
+		end
+
+		if land_unit_card:CurrentState():starts_with("selected") then
+			mod.num_unit_cards_selected = mod.num_unit_cards_selected + 1
+		end
+
+		local exp = find_uicomponent(
+			land_unit_card,
 			"experience"
 		)
-
 		if not exp then
 			break
 		end
+
 		if unit_index > 50 then
 			cm:remove_callback("pj_unit_upgrades_callback_id_2")
 			break
@@ -633,7 +662,7 @@ mod.update_upgrade_icons = function()
 					for _, unit_upgrade in ipairs(unit_upgrades) do
 						local unit_key_to = unit_upgrade[1]
 						local upgrade_rank_adjustment = 0
-						if mod.is_unit_recruitable_in_province(unit_key_to, province_name) then
+						if province_name and mod.is_unit_recruitable_in_province(unit_key_to, province_name) then
 							upgrade_rank_adjustment = -2
 						elseif mod.is_unit_recruitable_anywhere(unit_key_to) then
 							upgrade_rank_adjustment = -1
@@ -689,8 +718,8 @@ core:add_listener(
 		local commander =  cm:get_character_by_cqi(commander_cqi)
 		local unit_interface = commander:military_force():unit_list():item_at(unit_index)
 		cm:set_unit_hp_to_unary_of_maximum(unit_interface, unit_hp)
-  end,
-  true
+	end,
+	true
 )
 
 mod.get_culture_id = function(faction_name)
@@ -912,11 +941,12 @@ mod.first_tick_cb = function()
 		'pj_unit_upgrades_on_mouse_over_LandUnit',
 		'ComponentMouseOn',
 		function(context)
-			if context.string:starts_with("Agent ") then
+			if not mod.commander_cqi or context.string:starts_with("Agent ") then
 				mod.hide_retrain_buttons()
 				mod.unit_index = nil
 				return false
 			end
+
 			local is_land_unit = context.string:starts_with("LandUnit ")
 			return is_land_unit
 		end,
@@ -973,6 +1003,8 @@ mod.first_tick_cb = function()
 				and cm:whose_turn_is_it() == cm:get_local_faction(true)
 			if not is_player_char then
 				mod.hide_retrain_buttons()
+				cm:remove_callback("pj_unit_upgrades_callback_id_2")
+				mod.commander_cqi = nil
 				return
 			end
 

@@ -31,6 +31,8 @@ cm:add_first_tick_callback(function()
 	add_upgrade("wh2_main_hef_inf_archers_1", "wh2_dlc10_hef_inf_sisters_of_avelorn_0", {8})
 
 	add_upgrade("wh_main_dwf_inf_hammerers", "wh_main_dwf_inf_ironbreakers", {5})
+	add_upgrade("wh_main_dwf_inf_quarrellers_0", "wh_dlc06_dwf_inf_rangers_0", {5})
+	add_upgrade("wh_main_dwf_inf_quarrellers_1", "wh_dlc06_dwf_inf_rangers_1", {5})
 
 	add_upgrade("wh2_dlc09_tmb_inf_skeleton_warriors_0", "wh2_dlc09_tmb_inf_nehekhara_warriors_0", {5})
 	add_upgrade("wh2_dlc09_tmb_inf_nehekhara_warriors_0", "wh2_dlc09_tmb_inf_tomb_guard_0", {7})
@@ -52,6 +54,9 @@ cm:add_first_tick_callback(function()
 
 	add_upgrade("wh_dlc05_wef_inf_dryads_0", "wh_dlc05_wef_mon_treekin_0", {4})
 	add_upgrade("wh_dlc05_wef_mon_treekin_0", "wh_dlc05_wef_mon_treeman_0", {6})
+
+	add_upgrade("wh_main_emp_art_mortar", "wh_main_emp_art_helstorm_rocket_battery", {8})
+	add_upgrade("wh_main_emp_art_great_cannon", "wh_main_emp_art_helblaster_volley_gun", {8})
 
 end)
 
