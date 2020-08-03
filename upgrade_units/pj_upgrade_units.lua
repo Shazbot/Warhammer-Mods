@@ -33,9 +33,27 @@ for unit_key, unit_cost in pairs(require("pj_upgrade_units/unit_to_cost")) do
 	mod.unit_cost[unit_key] = unit_cost
 end
 
+mod.add_unit_costs = function(t)
+	for main_unit_key, unit_cost in pairs(t) do
+		mod.unit_cost[main_unit_key] = unit_cost
+	end
+end
+
 local building_requirements = require("pj_upgrade_units/building_requirements")
 mod.unit_recruitment_buildings = building_requirements.unit_to_buildings
 mod.additional_unit_building_req = building_requirements.additional_building_requirement
+
+mod.add_unit_recruitment_buildings = function(t)
+	for main_unit_key, building_keys in pairs(t) do
+		mod.unit_recruitment_buildings[main_unit_key] = building_keys
+	end
+end
+
+mod.add_additional_unit_building_req = function(t)
+	for main_unit_key, building_keys in pairs(t) do
+		mod.additional_unit_building_req[main_unit_key] = building_keys
+	end
+end
 
 --- Returns cost of upgrading a unit.
 mod.get_upgrade_cost = function(unit_key)
@@ -54,6 +72,9 @@ mod.sorted_units = require("pj_upgrade_units/sorted_unit_keys")
 --- They are usually the same except in a few cases.
 mod.main_unit_to_land_unit = require("pj_upgrade_units/main_unit_to_land_unit")
 
+--- Lookup table: culture infix to culture id.
+mod.culture_to_id = require("pj_upgrade_units/culture_to_id")
+
 --- All the possible unit upgrades.
 mod.unit_upgrades = mod.unit_upgrades or {}
 for unit_key, unit_upgrades in pairs(require("pj_upgrade_units/unit_upgrades")) do
@@ -61,6 +82,18 @@ for unit_key, unit_upgrades in pairs(require("pj_upgrade_units/unit_upgrades")) 
 		unit_upgrades = {{unit_upgrades, 6}}
 	end
 	mod.unit_upgrades[unit_key] = unit_upgrades
+end
+
+mod.add_unit_upgrades = function(t)
+	for main_unit_key, unit_upgrades in pairs(t) do
+		if type(unit_upgrades) == "string" then
+			unit_upgrades = {{unit_upgrades, 6}}
+		end
+		mod.unit_upgrades[main_unit_key] = mod.unit_upgrades[main_unit_key] or {}
+		for _, unit_upgrade in ipairs(unit_upgrades) do
+			table.insert(mod.unit_upgrades[main_unit_key], unit_upgrade)
+		end
+	end
 end
 
 --- Hide all the retrain buttons in the UI.
@@ -291,15 +324,21 @@ mod.update_UI = function()
 
 	local in_foreign_territory = false
 	local is_near_settlement = false
-	if commander:region():owning_faction():name() ~= commander:faction():name() then
-		in_foreign_territory = true
-	end
 
-	local settlement = commander:region():settlement()
-	local x,y = settlement:logical_position_x(), settlement:logical_position_y()
-	local dist_sqr = distance_squared(x,y , commander:logical_position_x(), commander:logical_position_y())
-	if dist_sqr <= 25 then
+	if commander:region():is_null_interface() then
+		in_foreign_territory = false
 		is_near_settlement = true
+	else
+		if commander:region():owning_faction():name() ~= commander:faction():name() then
+			in_foreign_territory = true
+		end
+
+		local settlement = commander:region():settlement()
+		local x,y = settlement:logical_position_x(), settlement:logical_position_y()
+		local dist_sqr = distance_squared(x,y , commander:logical_position_x(), commander:logical_position_y())
+		if dist_sqr <= 25 then
+			is_near_settlement = true
+		end
 	end
 
 	local is_horde = string.find(commander:military_force():force_type():key(), "HORDE")
@@ -362,46 +401,67 @@ mod.update_UI = function()
 			local are_funds_adequate = commander:faction():treasury() >= upgrade_cost
 			mod.active_upgrade_cost = upgrade_cost
 
-			local new_tooltip_text =
-				"Can upgrade to "
-				..effect.get_localised_string("land_units_onscreen_name_"..(mod.main_unit_to_land_unit[unit_key_to] or unit_key_to))
-				.." at rank "
-				..tostring(math.max(0, unit_upgrade_rank+upgrade_rank_adjustment))
-				.."."
+			local localized_unit_name = effect.get_localised_string("land_units_onscreen_name_"..(mod.main_unit_to_land_unit[unit_key_to] or unit_key_to))
+			localized_unit_name = string.gsub(localized_unit_name, "\r", "") -- regional unit mod has locs ending with \r, regrettable
+
+			local localized_tooltip_text = effect.get_localised_string("pj_unit_upgrades_loc_tooltip_text")
+			localized_tooltip_text = string.gsub(localized_tooltip_text, "REPLACE_UNIT_NAME", localized_unit_name)
+			localized_tooltip_text = string.gsub(localized_tooltip_text, "REPLACE_RANK_REQUIRED", tostring(math.max(0, unit_upgrade_rank+upgrade_rank_adjustment)))
+			local new_tooltip_text = localized_tooltip_text
 
 			if unit_rank < unit_upgrade_rank+upgrade_rank_adjustment then
-				new_tooltip_text = new_tooltip_text.."\nCurrent rank is "..tostring(unit_rank).."."
+				local localized_current_rank = effect.get_localised_string("pj_unit_upgrades_loc_current_rank")
+				localized_current_rank = string.gsub(localized_current_rank, "REPLACE_CURRENT_RANK", tostring(unit_rank))
+				new_tooltip_text = new_tooltip_text.."\n"..localized_current_rank
 			end
 
-			new_tooltip_text = new_tooltip_text.."\nCosts "..tostring(upgrade_cost).."[[img:icon_money]][[/img]]."
+			local localized_cost_text = effect.get_localised_string("pj_unit_upgrades_loc_cost_text")
+			localized_cost_text = string.gsub(localized_cost_text, "REPLACE_COST_REQUIRED", tostring(upgrade_cost))
+			new_tooltip_text = new_tooltip_text.."\n"..localized_cost_text
+
 			if unit_upgrade.pooled_res and unit_upgrade.pooled_res_amount then
 				local res_upgrade_cost = unit_upgrade.pooled_res_amount
 				if unit_upgrade.pooled_res == "dwf_oathgold" then
-					new_tooltip_text = new_tooltip_text.."\nCosts "..tostring(res_upgrade_cost).."[[img:icon_oathgold]][[/img]]."
+					local localized_oathgold_cost_text = effect.get_localised_string("pj_unit_upgrades_loc_oathgold_cost_text")
+					localized_oathgold_cost_text = string.gsub(localized_oathgold_cost_text, "REPLACE_OATHGOLD_COST_REQUIRED", tostring(res_upgrade_cost))
+					new_tooltip_text = new_tooltip_text.."\n"..localized_oathgold_cost_text
 				else
-					new_tooltip_text = new_tooltip_text.."\nCosts "..tostring(res_upgrade_cost).." "..localized_pooled_res.."."
+					local localized_pooled_res_cost_text = effect.get_localised_string("pj_unit_upgrades_loc_pooled_res_cost_text")
+					localized_pooled_res_cost_text = string.gsub(localized_pooled_res_cost_text, "REPLACE_POOLED_RES_COST_REQUIRED", tostring(res_upgrade_cost))
+					localized_pooled_res_cost_text = string.gsub(localized_pooled_res_cost_text, "REPLACE_POOLED_RES_REQUIRED_NAME", localized_pooled_res)
+					new_tooltip_text = new_tooltip_text.."\n"..localized_pooled_res_cost_text
 				end
 			end
 
 			local are_too_many_units_selected = mod.num_unit_cards_selected > 1
 			if are_too_many_units_selected then
-				new_tooltip_text = new_tooltip_text.."\n[[col:red]]You cannot upgrade multiple units at the same time.[[/col]]"
+				local localized_disallowed_multiple = effect.get_localised_string("pj_unit_upgrades_loc_disallowed_multiple")
+				new_tooltip_text = new_tooltip_text.."\n"..localized_disallowed_multiple
 			end
 			if in_foreign_territory then
-				new_tooltip_text = new_tooltip_text.."\n[[col:red]]You must be in a region you own.[[/col]]"
+				local localized_must_own_region = effect.get_localised_string("pj_unit_upgrades_loc_must_own_region")
+				new_tooltip_text = new_tooltip_text.."\n"..localized_must_own_region
 			end
 			if not is_near_settlement then
-				new_tooltip_text = new_tooltip_text.."\n[[col:red]]You must be close to a city to upgrade.[[/col]]"
+				local localized_must_be_close_to_city = effect.get_localised_string("pj_unit_upgrades_loc_must_be_close_to_city")
+				new_tooltip_text = new_tooltip_text.."\n"..localized_must_be_close_to_city
 			end
 			if not are_funds_adequate then
-				new_tooltip_text = new_tooltip_text.."\n[[col:red]]You must have "..tostring(upgrade_cost).."[[img:icon_money]][[/img]] to upgrade.[[/col]]"
+				local localized_must_have_funds = effect.get_localised_string("pj_unit_upgrades_loc_must_have_funds")
+				localized_must_have_funds = string.gsub(localized_must_have_funds, "REPLACE_FUNDS_REQUIRED", tostring(upgrade_cost))
+				new_tooltip_text = new_tooltip_text.."\n"..localized_must_have_funds
 			end
 			if not is_pooled_res_adequate then
 				local res_upgrade_cost = unit_upgrade.pooled_res_amount
 				if unit_upgrade.pooled_res == "dwf_oathgold" then
-					new_tooltip_text = new_tooltip_text.."\n[[col:red]]You must have "..tostring(res_upgrade_cost).."[[img:icon_oathgold]][[/img]] to upgrade.[[/col]]"
+					local localized_must_have_oathgold = effect.get_localised_string("pj_unit_upgrades_loc_must_have_oathgold")
+					localized_must_have_oathgold = string.gsub(localized_must_have_oathgold, "OATHGOLD_REQUIRED", tostring(res_upgrade_cost))
+					new_tooltip_text = new_tooltip_text.."\n"..localized_must_have_oathgold
 				else
-					new_tooltip_text = new_tooltip_text.."\n[[col:red]]You must have "..tostring(res_upgrade_cost).." "..localized_pooled_res.." to upgrade.[[/col]]"
+					local localized_must_have_pooled_res = effect.get_localised_string("pj_unit_upgrades_loc_must_have_pooled_res")
+					localized_must_have_pooled_res = string.gsub(localized_must_have_pooled_res, "POOLED_RES_REQUIRED", tostring(res_upgrade_cost))
+					localized_must_have_pooled_res = string.gsub(localized_must_have_pooled_res, "POOLED_RES_REQUIRED_NAME", localized_pooled_res)
+					new_tooltip_text = new_tooltip_text.."\n"..localized_must_have_pooled_res
 				end
 			end
 
@@ -724,7 +784,7 @@ core:add_listener(
 
 mod.get_culture_id = function(faction_name)
 	local faction_culture = cm:get_faction(faction_name):culture()
-	for infix, culture_id in pairs(PJDOW.culture_to_id) do
+	for infix, culture_id in pairs(mod.culture_to_id) do
 		if string.find(faction_culture, "_"..infix.."_") then
 			culture_id = tostring(culture_id)
 
@@ -766,6 +826,13 @@ mod.get_random_name = function(culture_id)
 	return forename, surname
 end
 
+mod.pooled_resource_factors = {
+	wardens_supply = "wh2_dlc15_resource_factor_wardens_supply_executed_prisoners",
+	grn_waaagh = "wh2_dlc15_resource_factor_waaagh_other",
+	emp_prestige = "wh2_dlc13_resource_factor_battles",
+	vmp_blood_kiss = "wh2_dlc11_vmp_resource_factor_other",
+}
+
 core:remove_listener("pj_unit_upgrades_on_script_event_grant_agent")
 core:add_listener(
 	"pj_unit_upgrades_on_script_event_grant_agent",
@@ -796,7 +863,8 @@ core:add_listener(
 		local forename, surname = mod.get_random_name(culture_id)
 		if agent_type == "general" then
 			cm:callback(function()
-				cm:create_force_with_general(faction_name, "", "", pos_x, pos_y, agent_type, agent_subtype, forename, surname, "", "", false)
+				local first_region_name = cm:model():world():region_manager():region_list():item_at(0):name()
+				cm:create_force_with_general(faction_name, "", first_region_name, pos_x, pos_y, agent_type, agent_subtype, forename, surname, "", "", false)
 			end, 1)
 		else
 			cm:callback(function()
@@ -806,7 +874,8 @@ core:add_listener(
 
 		cm:treasury_mod(faction:name(), -cost)
 		if pooled_res_key and pooled_res_key ~= "NONE" and res_cost and res_cost ~= 0 then
-			cm:pooled_resource_mod(faction:command_queue_index(), pooled_res_key, "wh2_main_resource_factor_missions", -res_cost)
+			local resource_factor = mod.pooled_resource_factors[pooled_res_key] or "wh2_main_resource_factor_missions"
+			cm:pooled_resource_mod(faction:command_queue_index(), pooled_res_key, resource_factor, -res_cost)
 		end
 	end,
 	true
@@ -836,7 +905,8 @@ core:add_listener(
 		local faction = cm:get_character_by_cqi(commander_cqi):faction()
 		cm:treasury_mod(faction:name(), -cost)
 		if pooled_res_key and pooled_res_key ~= "NONE" and res_cost and res_cost ~= 0 then
-			cm:pooled_resource_mod(faction:command_queue_index(), pooled_res_key, "wh2_main_resource_factor_missions", -res_cost)
+			local resource_factor = mod.pooled_resource_factors[pooled_res_key] or "wh2_main_resource_factor_missions"
+			cm:pooled_resource_mod(faction:command_queue_index(), pooled_res_key, resource_factor, -res_cost)
 		end
 
 		if cm:get_faction(cm:get_local_faction(true)):command_queue_index() == faction_cqi then

@@ -11,7 +11,8 @@ cm:add_first_tick_callback(function()
 		return
 	end
 
-	add_upgrade("wh_main_grn_mon_trolls", "wh2_dlc15_grn_mon_river_trolls_0", {5})
+	add_upgrade("wh_main_grn_mon_trolls", "wh2_dlc15_grn_mon_stone_trolls_0", {5})
+	add_upgrade("wh2_dlc15_grn_mon_stone_trolls_0", "wh2_dlc15_grn_mon_river_trolls_0", {5, no_icon = true})
 	add_upgrade("wh_main_grn_mon_trolls", "wh2_dlc15_grn_mon_river_trolls_0", {7})
 	add_upgrade("wh_main_grn_inf_orc_big_uns", "wh_main_grn_inf_black_orcs", {6})
 
