@@ -166,7 +166,7 @@ cm:add_first_tick_callback(
 )
 ```
 
-This makes the code inside the anonymous `function` run after the game world is created.
+This makes the code inside `function() ... end` run after the game world is created.
 Also note that we can't actually test `add_first_tick_callback` using `exec.lua` since by the time we can press F9 it's already too late, the first tick is over and won't happen again. If we load the game the Lua environment gets reset and nothing of our `exec.lua` changes remains.
 This also happens after battles, the campaign portion of the game after a battle gets created from scratch.
 
