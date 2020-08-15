@@ -1,24 +1,24 @@
-# Setting up your environment
+# 1. Setting up your environment
 
-## 1. Get Visual Studio Code
+## 1.1. Get Visual Studio Code
 
 <https://code.visualstudio.com/download>
 
-## 2. Get the Lua extension by sumneko
+## 1.2. Get the Lua extension by sumneko
 
 <https://marketplace.visualstudio.com/items?itemName=sumneko.lua>
 
-## 3. Download my Warhammer-Mods repo and extract it
+## 1.3. Download my Warhammer-Mods repo and extract it
 
 <https://github.com/Shazbot/Warhammer-Mods/archive/master.zip>
 
 ![download repo as zip](images/download_repo.png)
 
-## 4. Add the autocomplete folder from my repo to your workspace
+## 1.4. Add the autocomplete folder from my repo to your workspace
 
 ![add folder to workspace](images/add_folder_to_workspace.png)
 
-## 5. In the problems panel enable "Show Active File Only"
+## 1.5. In the problems panel enable "Show Active File Only"
 
 Switch to the problems tab in the panel on the bottom.
 
@@ -28,11 +28,15 @@ The autocomplete folder will have errors that don't matter to us since the autoc
 
 ![enable show active file only](images/show_active_file_only.png)
 
-## 6. As long as you code inside this workspace you'll get autocomplete
+## 1.6. As long as you code inside this workspace you'll get autocomplete
 
 ![autocomplete is now active](images/autocomplete.png)
 
-## 7. Mods we need from the workshop
+## 1.7. Onward to a better workflow
+
+Now you have a coding environment that will warn you when you have errors and help you with autocomplete. You are free to leave, but if you'd like, I'll introduce a better workflow to coding Lua mods using my Execute External Lua File mod.
+
+## 1.8. Mods we need from the workshop
 
 Subscribe to the following mods and enable them in the WH2 mod manager:
 
@@ -42,7 +46,7 @@ Subscribe to the following mods and enable them in the WH2 mod manager:
 
 [Draw Debug Logs](https://steamcommunity.com/sharedfiles/filedetails/?id=1929093751) - useful for visual debugging of Lua data, will show us errors in our code we execute
 
-## 8. Create _exec.lua_
+## 1.9. Create _exec.lua_
 
 Go to File->New File in VSCode.
 Inside the file write the following:
@@ -53,17 +57,17 @@ dout(cm:get_local_faction())
 
 Now save the file as _exec.lua_, inside your _steamapps\common\Total War WARHAMMER II_ folder.
 
-## 9. Execute our _exec.lua_ file
+## 1.10. Execute our _exec.lua_ file
 
 Go ingame and press F9, this will run our Lua file.
 _dout_ is a function from the Draw Debug Logs mod, it will print out a string on the screen. We'll see the key of the faction we're playing printed on the screen.
 
-## 10. The motivation
+## 1.11. The motivation
 
 What we're trying to avoid is having to restart the game when making code changes. We can't learn or be productive if we don't have an environment that is conductive to that, and the exec.lua file will provide just that.
 We'll have to make changes to our code when we're packaging the mod for the users, but more on that later.
 
-## 10. How script executing works
+## 1.12. How script executing works
 
 Each time we press F9 our code gets run inside the game.
 But any changes we made in previous executions remain.
@@ -134,7 +138,7 @@ core:add_listener(
 
 Now before a listener is created, any listeners that exist with the id `pj_settlement_listener` will get removed.
 
-## 10. Learning Lua and the WH2 Lua API
+## 1.13. Learning Lua and the WH2 Lua API
 
 This isn't a tutorial on Lua. Vandy made a great tutorial for that:
 [Lua Tutorials](https://tw-modding.com/docs/lua-tutorials/).
@@ -147,7 +151,7 @@ After that you'll need the CA documentation on the Lua API we'll be using to man
 
 [More Campaign Manager](https://chadvandy.github.io/tw_modding_resources/campaign/episodic_scripting.html#class:episodic_scripting)
 
-## 11. The timing differences
+## 1.14. The timing differences
 
 We run our code manually and then it exists in the game. But when we put our code in a pack we need to tell the game when to run it.
 We usually want it to get run inside `cm:add_first_tick_callback`:
@@ -164,6 +168,6 @@ This makes the code inside the anonymous `function` run after the game world is 
 Also note that we can't actually test `add_first_tick_callback` using `exec.lua` since by the time we can press F9 it's already too late, the first tick is over and won't happen again. If we load the game the Lua environment gets reset and nothing of our `exec.lua` changes remains.
 This also happens after battles, the campaign portion of the game after a battle gets created from scratch.
 
-## 12. Conclusion
+## 1.15. Conclusion
 
 This can be very complex to grasp if you're not familiar with Lua or other programming languages. And if it was too complex (in no part due to my fault) I hope you do come back to this file at a later date, since I truly believe this is the only way to script in this game and stay sane.
