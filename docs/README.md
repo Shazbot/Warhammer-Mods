@@ -66,7 +66,7 @@ _dout_ is a function from the Draw Debug Logs mod, it will print out a string on
 
 ### 2.4. The motivation
 
-What we're trying to avoid is having to restart the game when making code changes. We can't learn or be productive if we don't have an environment that is conductive to that, and the exec.lua file will provide just that.
+What we're trying to avoid is having to restart the game when making code changes. We can't learn or be productive if we don't have an environment that is conductive to that, and the exec.lua file will provide just that: a way to quickly get feedback and easily iterate on your code.
 We'll have to make changes to our code when we're packaging the mod for the users, but more on that later.
 
 ### 2.5. How script executing works
@@ -79,14 +79,14 @@ local a = 5
 dout(a)
 ```
 
-This for example won't leave any side effects since `a` is a local variable, it's scope is our file.
-If we make our file this instead and run it:
+This for example won't leave any side effects since `a` is a local variable, its scope is our file.
+If we change _exec.lua_ to this instead and run it:
 
 ```lua
 dout(a)
 ```
 
-we'll get `nil` since `a` doesn't exist anymore, since it was local.
+we'll get `nil` since `a` doesn't exist anymore, since `a` was a local variable.
 
 But if we declare `a` as a global variable:
 
@@ -120,12 +120,12 @@ core:add_listener(
 )
 ```
 
-But if we execute this multiple times each time a new listener gets created, and the old listeners remain active.
+But if we execute this multiple times each time a brand new listener gets created, and the old listeners still remain active.
 
-To avoid this before every listener use `core:remove_listener`:
+To avoid this before every listener we use `core:remove_listener`:
 
 ```lua
-core:remove_listener("pj_settlement_listener")
+core:remove_listener("pj_settlement_listener") -- THE BIG CHANGE
 core:add_listener(
  "pj_settlement_listener",
  "SettlementSelected",
@@ -155,7 +155,7 @@ After that you'll need the CA documentation on the Lua API we'll be using to man
 
 ### 2.7. The timing differences
 
-We run our code manually and then it exists in the game. But when we put our code in a pack we need to tell the game when to run it.
+We run our code manually and that's how it gets injected into the game. But when we put our code in a pack we need to tell the game when to run our code.
 We usually want it to get run inside `cm:add_first_tick_callback`:
 
 ```lua
@@ -167,9 +167,12 @@ cm:add_first_tick_callback(
 ```
 
 This makes the code inside `function() ... end` run after the game world is created.
-Also note that we can't actually test `add_first_tick_callback` using `exec.lua` since by the time we can press F9 it's already too late, the first tick is over and won't happen again. If we load the game the Lua environment gets reset and nothing of our `exec.lua` changes remains.
+Also note that we can't actually test `add_first_tick_callback` using `exec.lua` since by the time we can press F9 it's already too late, the first tick is over and won't happen again.
+
+If we load the game the Lua environment gets reset and nothing of our `exec.lua` changes remains.
+
 This also happens after battles, the campaign portion of the game after a battle gets created from scratch.
 
 ### 2.8. Conclusion
 
-This can be very complex to grasp if you're not familiar with Lua or other programming languages. And if it was too complex (in no part due to my fault) I hope you do come back to this file at a later date, since I truly believe this is the only way to script in this game and stay sane.
+This can be very complex to grasp if you're not familiar with Lua or other programming languages. And if it was too complex (in no small part due to my own fault), I do hope you come back to this file at a later date, since I truly believe this is the only way to write scripts in this game and stay sane.
