@@ -42,7 +42,7 @@ Subscribe to the following mods and enable them in the WH2 mod manager:
 
 [Draw Debug Logs](https://steamcommunity.com/sharedfiles/filedetails/?id=1929093751) - useful for visual debugging of Lua data, will show us errors in our code we execute
 
-## 8. Create `exec.lua`
+## 8. Create _exec.lua_
 
 Go to File->New File in VSCode.
 Inside the file write the following:
@@ -53,7 +53,7 @@ dout(cm:get_local_faction())
 
 Now save the file as _exec.lua_, inside your _steamapps\common\Total War WARHAMMER II_ folder.
 
-## 9. Execute our exec.lua file
+## 9. Execute our _exec.lua_ file
 
 Go ingame and press F9, this will run our Lua file.
 _dout_ is a function from the Draw Debug Logs mod, it will print out a string on the screen. We'll see the key of the faction we're playing printed on the screen.
