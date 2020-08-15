@@ -48,6 +48,8 @@ Subscribe to the following mods and enable them in the WH2 mod manager:
 
 [Draw Debug Logs](https://steamcommunity.com/sharedfiles/filedetails/?id=1929093751) - useful for visual debugging of Lua data, will show us errors in our code we execute
 
+[UI Modding Framework](https://steamcommunity.com/workshop/filedetails/?id=1354363596) - since Draw Debug Logs relies on this
+
 ### 2.2. Create _exec.lua_
 
 Go to File->New File in VSCode.
