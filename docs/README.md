@@ -51,7 +51,7 @@ Inside the file write the following:
 dout(cm:get_local_faction())
 ```
 
-Now save the as _exec.lua_, inside your _steamapps\common\Total War WARHAMMER II_ folder.
+Now save the file as _exec.lua_, inside your _steamapps\common\Total War WARHAMMER II_ folder.
 
 ## 9. Execute our exec.lua file
 
