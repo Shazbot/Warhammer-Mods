@@ -36,7 +36,7 @@ The autocomplete folder will have errors that don't matter to us since the autoc
 
 ## 2. Onward to a better workflow
 
-Now you have a coding environment that will warn you when you have errors and help you with autocomplete. You are free to leave, but if you'd like, I'll introduce a better workflow to coding Lua mods using my Execute External Lua File mod.
+Now you have a coding environment that will warn you when you have errors and help you with autocomplete. You are free to leave, but if you'd like, I'll introduce you to a better Lua mod coding workflow using my Execute External Lua File mod.
 
 ### 2.1. Mods we need from the workshop
 
