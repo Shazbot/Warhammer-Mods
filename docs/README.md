@@ -14,9 +14,7 @@
 
 <https://github.com/Shazbot/Warhammer-Mods/archive/master.zip>
 
-![download repo as zip](images/download_repo.png)
-
-### 1.4. Add the autocomplete folder from my repo to your workspace
+### 1.4. Add the autocomplete folder from the zip to your workspace
 
 ![add folder to workspace](images/add_folder_to_workspace.png)
 
