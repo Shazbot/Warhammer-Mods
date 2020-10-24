@@ -202,7 +202,7 @@ local unit_upgrades = {
 	wh_main_chs_inf_chaos_marauders_1 = {
 		{"wh_main_chs_inf_chaos_marauders_0", 0, no_icon = true},
 		{"wh_main_chs_inf_chaos_warriors_1", 6},
-		{"wh_main_chs_inf_chaos_warriors_2", 6},
+		{"wh_dlc01_chs_inf_chaos_warriors_2", 6},
 		{"wh_main_chs_mon_chaos_spawn", 7},
 	},
 	wh_main_chs_inf_chaos_warriors_0 = {
@@ -781,9 +781,14 @@ local unit_upgrades = {
 
 	wh2_dlc09_tmb_inf_skeleton_warriors_0 = {
 		{"wh2_dlc09_tmb_inf_skeleton_spearmen_0", 0, no_icon = true},
+		{"wh2_dlc09_tmb_inf_nehekhara_warriors_0", 5},
 	},
 	wh2_dlc09_tmb_inf_skeleton_spearmen_0 = {
 		{"wh2_dlc09_tmb_inf_skeleton_warriors_0", 0, no_icon = true},
+		{"wh2_dlc09_tmb_inf_tomb_guard_1", 7},
+	},
+	wh2_dlc09_tmb_inf_nehekhara_warriors_0 = {
+		{"wh2_dlc09_tmb_inf_tomb_guard_0", 7},
 	},
 	wh2_dlc09_tmb_inf_tomb_guard_0 = {
 		{"wh2_dlc09_tmb_inf_tomb_guard_1", 7, no_icon = true},
@@ -806,7 +811,9 @@ local unit_upgrades = {
 	wh2_dlc09_tmb_cav_necropolis_knights_1 = {
 		{"wh2_dlc09_tmb_cav_necropolis_knights_0", 5, no_icon = true},
 	},
-
+	wh2_dlc09_tmb_cav_skeleton_horsemen_0 = {
+		{"wh2_dlc09_tmb_cav_nehekhara_horsemen_0", 6},
+	},
 
 
 	wh2_dlc11_cst_inf_zombie_deckhands_mob_0 = {

@@ -27,6 +27,10 @@ mod.num_unit_cards_selected = 0
 --- Default cost of a unit for any cost calculations.
 mod.default_unit_cost = 2500
 
+--- Building keys in each player horde army, gets built on CharacterSelected.
+--- Keys can sometimes be for example wh_main_horde_chaos_marauders_1wh_main_chs_chaos, so compare using string.starts_with
+mod.horde_buildings = mod.horde_buildings or {}
+
 --- Lookup: unit_key to unit recruitment cost.
 mod.unit_cost = mod.unit_cost or {}
 for unit_key, unit_cost in pairs(require("pj_upgrade_units/unit_to_cost")) do
@@ -60,11 +64,6 @@ mod.get_upgrade_cost = function(unit_key)
 	local upgrade_cost = mod.unit_cost[unit_key] or mod.default_unit_cost
 	return math.floor(upgrade_cost*mod.upgrade_cost_multiplier + 0.5)
 end
-
---- List of unit keys, units of same faction are sequential.
---- Used to build the human readable tree of unit upgrades.
---- Not used during normal execution.
-mod.sorted_units = require("pj_upgrade_units/sorted_unit_keys")
 
 --- Lookup table: main_unit_key to land_unit_key.
 --- We need the land_unit_key to get localized unit names.
@@ -137,13 +136,12 @@ mod.add_retrain_button = function(index)
 		local retrain_button
 		if not existing_retrain_address then
 			retrain_button = UIComponent(retrain:CopyComponent(retrain_button_id))
-			retrain_button:SetVisible(true)
 			retrain_button:SetState("active")
-			retrain_button:SetImagePath("ui/skins/default/icon_objectives.png")
 		else
 			retrain_button = UIComponent(existing_retrain_address)
-			retrain_button:SetVisible(true)
 		end
+		retrain_button:SetImagePath("ui/skins/default/icon_objectives.png")
+		retrain_button:SetVisible(true)
 
 		return retrain_button
 	end
@@ -210,9 +208,16 @@ digForComponent = function(startingComponent, componentName)
 	return nil
 end
 
+--- Refresh the whole army UI and try to not move the camera too much with our workaround.
+mod.refresh_army_UI = function()
+	local x, y, d, bb, h = cm:get_camera_position()
+	mod.simulate_army_refresh()
+	cm:set_camera_position(x, y, d, bb, h)
+end
+
 --- Refresh the whole army UI.
 --- We close the whole campaign UI and simulate selecting the commander.
-mod.refresh_army_UI = function()
+mod.simulate_army_refresh = function()
 	-- find and open the lords dropdown
 	local tab_units = find_uicomponent(
 		core:get_ui_root(),
@@ -223,9 +228,19 @@ mod.refresh_army_UI = function()
 		tab_units:SimulateLClick()
 	end
 
-	local units_dropdown = digForComponent(core:get_ui_root(), "units_dropdown")
-	---@type CA_UIC
-	local list_clip = digForComponent(units_dropdown, "list_clip")
+	local ui_root = core:get_ui_root()
+	local units_dropdown = find_uicomponent(
+		ui_root,
+		"layout", "radar_things", "dropdown_parent", "units_dropdown"
+	)
+	if not units_dropdown then return end
+
+	local list_clip = find_uicomponent(
+		units_dropdown,
+		"panel", "panel_clip", "sortable_list_units", "list_clip"
+	)
+	if not list_clip then return end
+
 	for i=0, list_clip:ChildCount()-1 do
 		local comp = UIComponent(list_clip:Find(i))
 		if comp:Id() == "list_box" then
@@ -270,6 +285,38 @@ mod.build_region_data = function()
 			end
 		end
 	end
+end
+
+mod.is_unit_recruitable_in_horde = function(unit_key, commander_cqi)
+	local unit_recruitment_buildings = mod.unit_recruitment_buildings[unit_key] or {}
+	local additional_unit_building_req = mod.additional_unit_building_req[unit_key] or {}
+
+	local primary_recruitment_building_exists = #unit_recruitment_buildings == 0 -- if no requirement just set it true
+	local additional_unit_building_req_exists = #additional_unit_building_req == 0 -- if no requirement just set it true
+
+	-- if we have no defined building requirements for the unit then we say the unit isn't recruitable in province
+	if primary_recruitment_building_exists and additional_unit_building_req_exists then
+		return false
+	end
+
+	if not mod.horde_buildings[commander_cqi] then return false end
+
+	for _, building_name in ipairs(unit_recruitment_buildings) do
+		local horde_building_present = false
+		for _, horde_building_key in ipairs(mod.horde_buildings[commander_cqi]) do
+			horde_building_present = horde_building_present or horde_building_key:starts_with(building_name)
+		end
+		primary_recruitment_building_exists = primary_recruitment_building_exists or horde_building_present
+	end
+	for _, building_name in ipairs(additional_unit_building_req) do
+		local horde_building_present = false
+		for _, horde_building_key in ipairs(mod.horde_buildings[commander_cqi]) do
+			horde_building_present = horde_building_present or horde_building_key:starts_with(building_name)
+		end
+		additional_unit_building_req_exists = additional_unit_building_req_exists or horde_building_present
+	end
+
+	return primary_recruitment_building_exists and additional_unit_building_req_exists
 end
 
 mod.is_unit_recruitable_in_province = function(unit_key, province_name)
@@ -373,7 +420,21 @@ mod.update_UI = function()
 	for i, unit_upgrade in ipairs(unit_upgrades) do
 		local unit_key_to = unit_upgrade[1]
 		local unit_upgrade_rank = unit_upgrade[2]
-		local retrain_button = mod.add_retrain_button(i)
+		local retrain_button = nil
+
+		local are_prerequisites_valid = true
+		-- check faction has the pooled resource if it's a requirement
+		if unit_upgrade.pooled_res and unit_upgrade.pooled_res_amount then
+			local pooled_res = local_faction_obj:pooled_resource(unit_upgrade.pooled_res)
+			if not pooled_res or pooled_res:is_null_interface() then
+				are_prerequisites_valid = false
+			end
+		end
+
+		if are_prerequisites_valid then
+			retrain_button = mod.add_retrain_button(i)
+		end
+
 		if retrain_button then
 			local is_pooled_res_adequate = true
 
@@ -381,7 +442,7 @@ mod.update_UI = function()
 			if unit_upgrade.pooled_res and unit_upgrade.pooled_res_amount then
 				localized_pooled_res = effect.get_localised_string("pooled_resources_display_name_"..unit_upgrade.pooled_res)
 				local pooled_res = local_faction_obj:pooled_resource(unit_upgrade.pooled_res)
-				if pooled_res and pooled_res:value() < unit_upgrade.pooled_res_amount then
+				if pooled_res and not pooled_res:is_null_interface() and pooled_res:value() < unit_upgrade.pooled_res_amount then
 					is_pooled_res_adequate = false
 				end
 			end
@@ -389,6 +450,9 @@ mod.update_UI = function()
 			local cost_formula = mod.default_cost_formula
 			local upgrade_rank_adjustment = 0
 			if province_name and mod.is_unit_recruitable_in_province(unit_key_to, province_name) then
+				upgrade_rank_adjustment = -2
+				cost_formula = mod.local_rec_cost_formula
+			elseif is_horde and mod.is_unit_recruitable_in_horde(unit_key_to, mod.commander_cqi) then
 				upgrade_rank_adjustment = -2
 				cost_formula = mod.local_rec_cost_formula
 			elseif mod.is_unit_recruitable_anywhere(unit_key_to) then
@@ -404,20 +468,52 @@ mod.update_UI = function()
 			local localized_unit_name = effect.get_localised_string("land_units_onscreen_name_"..(mod.main_unit_to_land_unit[unit_key_to] or unit_key_to))
 			localized_unit_name = string.gsub(localized_unit_name, "\r", "") -- regional unit mod has locs ending with \r, regrettable
 
-			local localized_tooltip_text = effect.get_localised_string("pj_unit_upgrades_loc_tooltip_text")
-			localized_tooltip_text = string.gsub(localized_tooltip_text, "REPLACE_UNIT_NAME", localized_unit_name)
-			localized_tooltip_text = string.gsub(localized_tooltip_text, "REPLACE_RANK_REQUIRED", tostring(math.max(0, unit_upgrade_rank+upgrade_rank_adjustment)))
-			local new_tooltip_text = localized_tooltip_text
-
-			if unit_rank < unit_upgrade_rank+upgrade_rank_adjustment then
-				local localized_current_rank = effect.get_localised_string("pj_unit_upgrades_loc_current_rank")
-				localized_current_rank = string.gsub(localized_current_rank, "REPLACE_CURRENT_RANK", tostring(unit_rank))
-				new_tooltip_text = new_tooltip_text.."\n"..localized_current_rank
+			if localized_unit_name == "" then
+				dout(unit_key_to.." DOESN'T HAVE A VALID LOC KEY")
 			end
 
-			local localized_cost_text = effect.get_localised_string("pj_unit_upgrades_loc_cost_text")
-			localized_cost_text = string.gsub(localized_cost_text, "REPLACE_COST_REQUIRED", tostring(upgrade_cost))
-			new_tooltip_text = new_tooltip_text.."\n"..localized_cost_text
+			local new_tooltip_text = ""
+			local rank_required = math.max(0, unit_upgrade_rank+upgrade_rank_adjustment)
+			if rank_required ~= 0 then
+				local localized_tooltip_text = effect.get_localised_string("pj_unit_upgrades_loc_tooltip_text")
+				localized_tooltip_text = string.gsub(localized_tooltip_text, "REPLACE_UNIT_NAME", localized_unit_name)
+				localized_tooltip_text = string.gsub(localized_tooltip_text, "REPLACE_RANK_REQUIRED", tostring(rank_required))
+				new_tooltip_text = localized_tooltip_text
+
+				if unit_rank < unit_upgrade_rank+upgrade_rank_adjustment then
+					local localized_current_rank = effect.get_localised_string("pj_unit_upgrades_loc_current_rank")
+					localized_current_rank = string.gsub(localized_current_rank, "REPLACE_CURRENT_RANK", tostring(unit_rank))
+					new_tooltip_text = new_tooltip_text.."\n"..localized_current_rank
+				end
+			else
+				local localized_tooltip_text = effect.get_localised_string("pj_unit_upgrades_loc_tooltip_text_no_rank_req")
+				localized_tooltip_text = string.gsub(localized_tooltip_text, "REPLACE_UNIT_NAME", localized_unit_name)
+				new_tooltip_text = localized_tooltip_text
+			end
+
+			if upgrade_cost ~= 0 then
+				local localized_cost_text = effect.get_localised_string("pj_unit_upgrades_loc_cost_text")
+				localized_cost_text = string.gsub(localized_cost_text, "REPLACE_COST_REQUIRED", tostring(upgrade_cost))
+				new_tooltip_text = new_tooltip_text.."\n"..localized_cost_text
+			else
+				local localized_cost_text = effect.get_localised_string("pj_unit_upgrades_loc_cost_text_no_cost")
+				new_tooltip_text = new_tooltip_text.."\n"..localized_cost_text
+			end
+
+			local is_req_fun_valid = true
+			local req_fun_locs
+			if unit_upgrade.req_fun then
+				local data = {
+					unit_key_to = unit_key_to,
+					unit_key_from = unit_key_from,
+				}
+				is_req_fun_valid, req_fun_locs = unit_upgrade.req_fun(commander, data)
+			end
+
+			local is_over_the_unit_cap = false
+			if not mod.we_ignore_unit_caps then
+				is_over_the_unit_cap = local_faction_obj:unit_cap_remaining(unit_key_to) == 0
+			end
 
 			if unit_upgrade.pooled_res and unit_upgrade.pooled_res_amount then
 				local res_upgrade_cost = unit_upgrade.pooled_res_amount
@@ -431,6 +527,10 @@ mod.update_UI = function()
 					localized_pooled_res_cost_text = string.gsub(localized_pooled_res_cost_text, "REPLACE_POOLED_RES_REQUIRED_NAME", localized_pooled_res)
 					new_tooltip_text = new_tooltip_text.."\n"..localized_pooled_res_cost_text
 				end
+			end
+
+			if req_fun_locs then
+				new_tooltip_text = new_tooltip_text.."\n"..req_fun_locs.description
 			end
 
 			local are_too_many_units_selected = mod.num_unit_cards_selected > 1
@@ -464,14 +564,29 @@ mod.update_UI = function()
 					new_tooltip_text = new_tooltip_text.."\n"..localized_must_have_pooled_res
 				end
 			end
+			if not is_req_fun_valid then
+				if req_fun_locs then
+					new_tooltip_text = new_tooltip_text.."\n"..req_fun_locs.invalid
+				end
+			end
+			if is_over_the_unit_cap then
+				local localized_must_have_funds = effect.get_localised_string("pj_unit_upgrades_loc_over_the_unit_cap")
+				new_tooltip_text = new_tooltip_text.."\n"..localized_must_have_funds
+			end
 
 			retrain_button:SetTooltipText(new_tooltip_text, true)
+
+			if unit_upgrade.icon then
+				retrain_button:SetImagePath(unit_upgrade.icon)
+			end
 
 			if unit_rank < unit_upgrade_rank+upgrade_rank_adjustment
 				or in_foreign_territory
 				or not is_near_settlement
 				or not are_funds_adequate
 				or not is_pooled_res_adequate
+				or not is_req_fun_valid
+				or is_over_the_unit_cap
 				or are_too_many_units_selected
 			then
 				retrain_button:SetState("inactive")
@@ -662,9 +777,14 @@ mod.update_upgrade_icons = function()
 	local num_agents = mod.get_num_agents()
 	---@type CA_CHAR
 	local char = cm:get_character_by_cqi(mod.commander_cqi)
-	local province_name = not char:region():is_null_interface() and char:region():province_name()
+	if not char:has_military_force() then return end
+
+	local region = char:region()
+	local province_name = not region:is_null_interface() and region:province_name()
 	local unit_list = char:military_force():unit_list()
 	local army_size = unit_list:num_items()
+
+	local local_faction_obj = cm:get_faction(cm:get_local_faction(true))
 
 	mod.num_unit_cards_selected = 0
 
@@ -720,6 +840,7 @@ mod.update_upgrade_icons = function()
 
 					local unit_upgrades = mod.get_unit_upgrades(unit_key)
 					for _, unit_upgrade in ipairs(unit_upgrades) do
+						local show_upgrade_icon_for_current_unit_upgrade = false
 						local unit_key_to = unit_upgrade[1]
 						local upgrade_rank_adjustment = 0
 						if province_name and mod.is_unit_recruitable_in_province(unit_key_to, province_name) then
@@ -729,22 +850,40 @@ mod.update_upgrade_icons = function()
 						end
 
 						if unit_upgrade[2]+upgrade_rank_adjustment <= unit_rank and not unit_upgrade.no_icon then
-							show_upgrade_icon = true
+							show_upgrade_icon_for_current_unit_upgrade = true
+
+							if unit_upgrade.req_fun then
+								local data = {
+									unit_key_to = unit_key_to,
+									unit_key_from = unit_key,
+								}
+								show_upgrade_icon_for_current_unit_upgrade = show_upgrade_icon_for_current_unit_upgrade and unit_upgrade.req_fun(char, data)
+							end
 
 							-- check pooled resource requirement
 							if unit_upgrade.pooled_res and unit_upgrade.pooled_res_amount then
-								local pooled_res = cm:get_faction(cm:get_local_faction(true)):pooled_resource(unit_upgrade.pooled_res)
-								if pooled_res and pooled_res:value() < unit_upgrade.pooled_res_amount then
-									show_upgrade_icon = false
+								local pooled_res = local_faction_obj:pooled_resource(unit_upgrade.pooled_res)
+								if not pooled_res or pooled_res:is_null_interface() or pooled_res:value() < unit_upgrade.pooled_res_amount then
+									show_upgrade_icon_for_current_unit_upgrade = false
 								end
 							end
+
+							local is_over_the_unit_cap = false
+							if not mod.we_ignore_unit_caps then
+								is_over_the_unit_cap = local_faction_obj:unit_cap_remaining(unit_key_to) == 0
+							end
+							if is_over_the_unit_cap then
+								show_upgrade_icon_for_current_unit_upgrade = false
+							end
+
+							show_upgrade_icon = show_upgrade_icon or show_upgrade_icon_for_current_unit_upgrade
 						end
 					end
 				end
 			end
 		end
 
-		if show_upgrade_icon then
+		if show_upgrade_icon and not mod.is_unit_upgrade_icon_disabled then
 			mod.show_upgrade_icon(unit_index)
 		end
 
@@ -955,7 +1094,8 @@ mod.first_tick_cb = function()
 			return
 		end
 
-		local unit_upgrades = mod.get_unit_upgrades(unit_to_upgrade:unit_key())
+		local unit_key_from = unit_to_upgrade:unit_key()
+		local unit_upgrades = mod.get_unit_upgrades(unit_key_from)
 		local unit_upgrade = unit_upgrades[retrain_button_index]
 		if not unit_upgrade then
 			dout("no unit_upgrade")
@@ -968,6 +1108,14 @@ mod.first_tick_cb = function()
 		end
 
 		mod.add_new_unit(new_unit_key, commander, mod.unit_health, unit_upgrade)
+
+		if unit_upgrade.payload then
+			local data = {
+				unit_key_to = new_unit_key,
+				unit_key_from = unit_key_from,
+			}
+			unit_upgrade.payload(commander, data)
+		end
 
 		--- disband the unit by simulating the steps needed for the disband unit button
 		--- keep running this callback until the disband dialogue box pops up
@@ -1083,6 +1231,14 @@ mod.first_tick_cb = function()
 			mod.build_region_data()
 
 			cm:callback(function()
+				local ui_root = core:get_ui_root()
+				local thb = find_uicomponent(ui_root, "units_panel", "main_units_panel", "tabgroup", "tab_horde_buildings")
+				if thb:Visible() then
+					mod.build_horde_buildings()
+				end
+			end, 0.1)
+
+			cm:callback(function()
 				local army_name_label = find_uicomponent(
 					core:get_ui_root(),
 					"units_panel",
@@ -1101,39 +1257,17 @@ mod.first_tick_cb = function()
 		true
 	)
 end
-cm:add_first_tick_callback(mod.first_tick_cb)
+
+mod.delayed_first_tick_cb = function()
+	cm:callback(mod.first_tick_cb, 4.5)
+end
+
+cm:add_first_tick_callback(mod.delayed_first_tick_cb)
 
 --- We'll call first_tick_cb directly if hot-reloading during dev.
 --- We're checking for presence of execute external lua file in the traceback.
 if debug.traceback():find('pj_loadfile') then
 	mod.first_tick_cb()
-end
-
---- Dump the upgrades table to unit_upgrades.txt, in a human readable format.
---- For debugging, not called normally.
-mod.dump_upgrades = function()
-	local out = ""
-	for _, unit_key in ipairs(mod.sorted_units) do
-		local localized_unit = effect.get_localised_string("land_units_onscreen_name_"..(mod.main_unit_to_land_unit[unit_key] or unit_key))
-		if localized_unit == "" then
-			dout(unit_key)
-		end
-		out=out..tostring(localized_unit)
-		out=out.."\n"
-		local upgrades = mod.get_unit_upgrades(unit_key)
-		for _, upgrade in ipairs(upgrades) do
-			out=out.."\t"..tostring(effect.get_localised_string("land_units_onscreen_name_"..(mod.main_unit_to_land_unit[upgrade[1]] or upgrade[1])))
-			out=out.." "..tostring(upgrade[2])
-			if upgrade.no_icon then
-				out=out.." (not showing upgrade icon)"
-			end
-			out=out.."\n"
-		end
-	end
-
-	local file = io.open('unit_upgrades.txt', 'w')
-	file:write(out)
-	file:close()
 end
 
 --- Wrap all the functions calls with an out, so we can trace function calls.
@@ -1155,3 +1289,87 @@ mod.wrap_functions = function()
 
 	mod.are_functions_wrapped = true
 end
+
+mod.build_horde_buildings = function()
+	local ui_root = core:get_ui_root()
+	local sp = find_uicomponent(ui_root, "units_panel", "main_units_panel", "horde_building_frame", "settlement_parent")
+	if not sp then return end
+
+	local buildings = {}
+	for i=0, sp:ChildCount()-1 do
+		local child = UIComponent(sp:Find(i))
+		if child:ChildCount() > 0 then
+			local building = UIComponent(child:Find(0))
+			local building_key = building:Id()
+			if not string.find(building_key, "Construction_Site") then
+				table.insert(buildings, building_key)
+			end
+		end
+	end
+
+	mod.horde_buildings[mod.commander_cqi] = buildings
+end
+
+cm:add_saving_game_callback(
+	function(context)
+		cm:save_named_value("pj_unit_upgrades_horde_buildings", mod.horde_buildings, context)
+	end
+)
+
+cm:add_loading_game_callback(
+	function(context)
+		mod.horde_buildings = cm:load_named_value("pj_unit_upgrades_horde_buildings", mod.horde_buildings, context)
+	end
+)
+
+--- Run throught the unit upgrades and check if a localized name actually exists.
+--- For debugging, not called normally.
+mod.check_loc_validity = function()
+	for unit_key in pairs(mod.unit_upgrades) do
+		local upgrades = mod.get_unit_upgrades(unit_key)
+		for _, unit_upgrade in ipairs(upgrades) do
+			local unit_key_to = unit_upgrade[1]
+
+			local localized_unit_name = effect.get_localised_string("land_units_onscreen_name_"..(mod.main_unit_to_land_unit[unit_key_to] or unit_key_to))
+			if localized_unit_name == "" then
+				dout(unit_key_to.." DOESN'T HAVE A VALID LOC KEY")
+			end
+
+			local localized_unit_name = effect.get_localised_string("land_units_onscreen_name_"..(mod.main_unit_to_land_unit[unit_key] or unit_key))
+			if localized_unit_name == "" then
+				dout(unit_key_to.." DOESN'T HAVE A VALID LOC KEY")
+			end
+		end
+	end
+end
+
+mod.update_settings = function(mct)
+	local my_mod = mct:get_mod_by_key("pj_upgrade_units")
+
+	mod.is_unit_upgrade_icon_disabled = my_mod:get_option_by_key("pj_upgrade_units_is_unit_upgrade_icon_disabled"):get_finalized_setting()
+	mod.we_ignore_unit_caps = my_mod:get_option_by_key("pj_upgrade_units_we_ignore_unit_caps"):get_finalized_setting()
+end
+
+core:remove_listener("pj_upgrade_units_mct_init_cb")
+core:add_listener(
+	"pj_upgrade_units_mct_init_cb",
+	"MctInitialized",
+	true,
+	function(context)
+		local mct = context:mct()
+		mod.update_settings(mct)
+	end,
+	true
+)
+
+core:remove_listener("pj_upgrade_units_mct_finalized_cb")
+core:add_listener(
+	"pj_upgrade_units_mct_finalized_cb",
+	"MctFinalized",
+	true,
+	function(context)
+		local mct = context:mct()
+		mod.update_settings(mct)
+	end,
+	true
+)
