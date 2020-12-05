@@ -337,6 +337,7 @@ local unit_upgrades = {
 	},
 	wh_dlc05_wef_inf_wardancers_0 = {
 		{"wh_dlc05_wef_inf_wardancers_1", 4, no_icon = true},
+		{"wh2_dlc16_wef_inf_bladesingers_0", 6, no_icon = true},
 	},
 	wh_dlc05_wef_inf_wardancers_1 = {
 		{"wh_dlc05_wef_inf_wardancers_0", 0, no_icon = true},
@@ -374,6 +375,10 @@ local unit_upgrades = {
 	},
 	wh_dlc05_wef_cav_wild_riders_0 = {
 		{"wh_dlc05_wef_cav_wild_riders_1", 4},
+		{"wh2_dlc16_wef_cav_great_stag_knights_0", 8},
+	},
+	wh_dlc05_wef_cav_wild_riders_1 = {
+		{"wh2_dlc16_wef_cav_great_stag_knights_0", 6},
 	},
 	wh_dlc05_wef_cav_glade_riders_0 = {
 		{"wh_dlc05_wef_cav_glade_riders_1", 4},
@@ -384,6 +389,10 @@ local unit_upgrades = {
 	wh_dlc05_wef_inf_waywatchers_0 = {
 		{"wh_dlc05_wef_cha_waystalker_0", 9, no_icon = true, agent_type="spy", agent_subtype="dlc05_wef_waystalker"},
 		{"wh_dlc05_wef_mon_treekin_0", 8, no_icon = true},
+	},
+	wh2_dlc16_wef_cav_glade_riders_2 = {
+		{"wh_dlc05_wef_cav_wild_riders_0", 4},
+		{"wh_dlc05_wef_cav_wild_riders_1", 5},
 	},
 
 
@@ -533,10 +542,10 @@ local unit_upgrades = {
 
 	wh2_main_hef_inf_archers_0 = {
 		{"wh2_main_hef_inf_archers_1", 3},
-		{"wh2_main_hef_inf_spearmen_0", 4},
+		{"wh2_main_hef_inf_spearmen_0", 4, no_icon = true},
 	},
 	wh2_main_hef_inf_archers_1 = {
-		{"wh2_main_hef_inf_spearmen_0", 3},
+		{"wh2_main_hef_inf_spearmen_0", 3, no_icon = true},
 	},
 	wh2_main_hef_inf_lothern_sea_guard_0 = {
 		{"wh2_main_hef_inf_lothern_sea_guard_1", 4}
@@ -775,6 +784,15 @@ local unit_upgrades = {
 	},
 	wh2_dlc14_skv_inf_poison_wind_mortar_0 = {
 		{"wh2_main_skv_inf_death_globe_bombardiers", 0, no_icon = true},
+	},
+	wh2_main_skv_mon_rat_ogres = {
+		{"wh2_dlc16_skv_mon_rat_ogre_mutant", 6, no_icon = true},
+	},
+	wh2_dlc16_skv_mon_wolf_rats_0 = {
+		{"wh2_dlc16_skv_mon_wolf_rats_1", 4},
+	},
+	wh2_dlc16_skv_mon_wolf_rats_1 = {
+		{"wh2_dlc16_skv_mon_wolf_rats_0", 4, no_icon = true},
 	},
 
 
