@@ -336,11 +336,12 @@ local unit_upgrades = {
 		{"wh_dlc05_wef_mon_treekin_0", 8, no_icon = true},
 	},
 	wh_dlc05_wef_inf_wardancers_0 = {
-		{"wh_dlc05_wef_inf_wardancers_1", 4, no_icon = true},
-		{"wh2_dlc16_wef_inf_bladesingers_0", 6, no_icon = true},
+		{"wh_dlc05_wef_inf_wardancers_1", 0, no_icon = true},
+		{"wh2_dlc16_wef_inf_bladesingers_0", 6},
 	},
 	wh_dlc05_wef_inf_wardancers_1 = {
 		{"wh_dlc05_wef_inf_wardancers_0", 0, no_icon = true},
+		{"wh2_dlc16_wef_inf_bladesingers_0", 6},
 	},
 	wh_dlc05_wef_inf_glade_guard_0 = {
 		{"wh_dlc05_wef_inf_glade_guard_1", 3},
@@ -380,9 +381,6 @@ local unit_upgrades = {
 	wh_dlc05_wef_cav_wild_riders_1 = {
 		{"wh2_dlc16_wef_cav_great_stag_knights_0", 6},
 	},
-	wh_dlc05_wef_cav_glade_riders_0 = {
-		{"wh_dlc05_wef_cav_glade_riders_1", 4},
-	},
 	wh_dlc05_wef_inf_dryads_0 = {
 		{"wh_dlc05_wef_cha_branchwraith_0", 8, no_icon = true, agent_type="champion", agent_subtype="wh_dlc05_wef_branchwraith"},
 	},
@@ -390,9 +388,30 @@ local unit_upgrades = {
 		{"wh_dlc05_wef_cha_waystalker_0", 9, no_icon = true, agent_type="spy", agent_subtype="dlc05_wef_waystalker"},
 		{"wh_dlc05_wef_mon_treekin_0", 8, no_icon = true},
 	},
-	wh2_dlc16_wef_cav_glade_riders_2 = {
+	wh_dlc05_wef_cav_glade_riders_0 = {
+		{"wh2_dlc16_wef_cav_glade_riders_2", 0, no_icon = true},
+		{"wh_dlc05_wef_cav_glade_riders_1", 4},
+		{"wh_dlc05_wef_cav_wild_riders_0", 6},
+		{"wh_dlc05_wef_cav_wild_riders_1", 8}
+	},
+	wh_dlc05_wef_cav_glade_riders_1 = {
+		{"wh2_dlc16_wef_cav_glade_riders_2", 0, no_icon = true},
 		{"wh_dlc05_wef_cav_wild_riders_0", 4},
-		{"wh_dlc05_wef_cav_wild_riders_1", 5},
+		{"wh_dlc05_wef_cav_wild_riders_1", 6}
+	},
+	wh2_dlc16_wef_cav_glade_riders_2= {
+		{"wh_dlc05_wef_cav_glade_riders_0", 0, no_icon = true},
+		{"wh_dlc05_wef_cav_glade_riders_1", 5},
+		{"wh_dlc05_wef_cav_wild_riders_0", 5},
+		{"wh_dlc05_wef_cav_wild_riders_1", 7}
+	},
+	wh2_dlc16_wef_mon_hawks_0 = {
+		{"wh_dlc05_wef_cav_hawk_riders_0", 4, no_icon = true},
+	},
+	wh2_dlc16_wef_inf_malicious_dryads_0 = {
+		{"wh2_dlc16_wef_cha_malicious_branchwraith_beasts_0", 8, no_icon = true, agent_type="champion", agent_subtype="wh2_dlc16_wef_malicious_branchwraith_beasts"},
+		{"wh2_dlc16_wef_cha_malicious_branchwraith_shadows_0", 8, no_icon = true, agent_type="champion", agent_subtype="wh2_dlc16_wef_malicious_branchwraith_shadows"},
+		{"wh2_dlc16_wef_cha_malicious_branchwraith_life_0", 8, no_icon = true, agent_type="champion", agent_subtype="wh2_dlc16_wef_malicious_branchwraith_life"},
 	},
 
 
@@ -789,10 +808,29 @@ local unit_upgrades = {
 		{"wh2_dlc16_skv_mon_rat_ogre_mutant", 6, no_icon = true},
 	},
 	wh2_dlc16_skv_mon_wolf_rats_0 = {
-		{"wh2_dlc16_skv_mon_wolf_rats_1", 4},
+		{"wh2_dlc16_skv_mon_wolf_rats_1", 0, no_icon = true},
 	},
 	wh2_dlc16_skv_mon_wolf_rats_1 = {
-		{"wh2_dlc16_skv_mon_wolf_rats_0", 4, no_icon = true},
+		{"wh2_dlc16_skv_mon_wolf_rats_0", 0, no_icon = true},
+	},
+	wh2_dlc16_skv_mon_wolf_rats_0_flesh_lab = {
+		{"wh2_dlc16_skv_mon_wolf_rats_1_flesh_lab", 0, no_icon = true},
+	},
+	wh2_dlc16_skv_mon_wolf_rats_1_flesh_lab = {
+		{"wh2_dlc16_skv_mon_wolf_rats_0_flesh_lab", 0, no_icon = true},
+	},
+	wh2_dlc16_skv_mon_rat_ogres_flesh_lab = {
+		{"wh2_dlc16_skv_mon_rat_ogre_mutant_flesh_lab", 6, no_icon = true},
+	},
+	wh2_dlc16_skv_inf_skavenslaves_0_flesh_lab = {
+		{"wh2_dlc16_skv_inf_skavenslave_spearmen_0_flesh_lab", 0, no_icon = true},
+		{"wh2_main_skv_inf_skavenslave_slingers_0", 0, no_icon = true},
+		{"wh2_main_skv_inf_clanrats_0", 7},
+	},
+	wh2_dlc16_skv_inf_skavenslave_spearmen_0_flesh_lab = {
+		{"wh2_dlc16_skv_inf_skavenslaves_0_flesh_lab", 0, no_icon = true},
+		{"wh2_main_skv_inf_skavenslave_slingers_0", 0, no_icon = true},
+		{"wh2_main_skv_inf_clanrat_spearmen_0", 7},
 	},
 
 
