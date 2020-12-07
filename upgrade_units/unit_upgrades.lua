@@ -639,7 +639,7 @@ local unit_upgrades = {
 	},
 	wh2_main_lzd_mon_bastiladon_1 = {			-- Revivification
 		{"wh2_dlc12_lzd_mon_bastiladon_3", 0, no_icon = true},
-		{"wh2_main_lzd_mon_bastiladon_2", 0, no_icon = true},
+		{"wh2_main_lzd_mon_bastiladon_2", 2, no_icon = true},
 	},
 	wh2_main_lzd_mon_bastiladon_2 = {			-- Solar Engine
 		{"wh2_dlc12_lzd_mon_bastiladon_3", 0, no_icon = true},
@@ -814,21 +814,21 @@ local unit_upgrades = {
 		{"wh2_dlc16_skv_mon_wolf_rats_0", 0, no_icon = true},
 	},
 	wh2_dlc16_skv_mon_wolf_rats_0_flesh_lab = {
-		{"wh2_dlc16_skv_mon_wolf_rats_1_flesh_lab", 0, no_icon = true},
+		{"wh2_dlc16_skv_mon_wolf_rats_1", 0, no_icon = true},
 	},
 	wh2_dlc16_skv_mon_wolf_rats_1_flesh_lab = {
-		{"wh2_dlc16_skv_mon_wolf_rats_0_flesh_lab", 0, no_icon = true},
+		{"wh2_dlc16_skv_mon_wolf_rats_0", 0, no_icon = true},
 	},
 	wh2_dlc16_skv_mon_rat_ogres_flesh_lab = {
-		{"wh2_dlc16_skv_mon_rat_ogre_mutant_flesh_lab", 6, no_icon = true},
+		{"wh2_dlc16_skv_mon_rat_ogre_mutant", 6, no_icon = true},
 	},
 	wh2_dlc16_skv_inf_skavenslaves_0_flesh_lab = {
-		{"wh2_dlc16_skv_inf_skavenslave_spearmen_0_flesh_lab", 0, no_icon = true},
+		{"wh2_main_skv_inf_skavenslave_spearmen_0", 0, no_icon = true},
 		{"wh2_main_skv_inf_skavenslave_slingers_0", 0, no_icon = true},
 		{"wh2_main_skv_inf_clanrats_0", 7},
 	},
 	wh2_dlc16_skv_inf_skavenslave_spearmen_0_flesh_lab = {
-		{"wh2_dlc16_skv_inf_skavenslaves_0_flesh_lab", 0, no_icon = true},
+		{"wh2_main_skv_inf_skavenslaves_0", 0, no_icon = true},
 		{"wh2_main_skv_inf_skavenslave_slingers_0", 0, no_icon = true},
 		{"wh2_main_skv_inf_clanrat_spearmen_0", 7},
 	},

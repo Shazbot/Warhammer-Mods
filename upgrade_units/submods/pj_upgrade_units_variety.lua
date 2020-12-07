@@ -54,10 +54,11 @@ cm:add_first_tick_callback(function()
 	add_upgrade("wh_main_emp_art_mortar", "wh_main_emp_art_helstorm_rocket_battery", {8})
 	add_upgrade("wh_main_emp_art_great_cannon", "wh_main_emp_art_helblaster_volley_gun", {8})
 
-	add_upgrade("wh2_dlc16_skv_mon_wolf_rats_0_flesh_lab", "wh2_dlc16_skv_mon_brood_horror_0_flesh_lab", {7})
-	add_upgrade("wh2_dlc16_skv_mon_wolf_rats_1_flesh_lab", "wh2_dlc16_skv_mon_brood_horror_0_flesh_lab", {7})
+	add_upgrade("wh2_dlc16_skv_mon_wolf_rats_0_flesh_lab", "wh2_dlc16_skv_mon_brood_horror_0", {7})
+	add_upgrade("wh2_dlc16_skv_mon_wolf_rats_1_flesh_lab", "wh2_dlc16_skv_mon_brood_horror_0", {7})
 	add_upgrade("wh2_dlc16_skv_mon_wolf_rats_0", "wh2_dlc16_skv_mon_brood_horror_0", {7})
 	add_upgrade("wh2_dlc16_skv_mon_wolf_rats_1", "wh2_dlc16_skv_mon_brood_horror_0", {7})
+	add_upgrade("wh2_dlc12_skv_veh_doom_flayer_0", "wh2_main_skv_veh_doomwheel", {7})
 
 	add_upgrade("wh_dlc05_wef_inf_eternal_guard_0", "wh2_dlc16_wef_mon_malicious_treekin_0", {8})
 	add_upgrade("wh_dlc05_wef_inf_eternal_guard_1", "wh2_dlc16_wef_mon_malicious_treekin_0", {8})
