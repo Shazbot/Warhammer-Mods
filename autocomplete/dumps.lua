@@ -1,6 +1,18 @@
 
 REGIONS =
 {
+		["wh2_main_badlands_glade"] = true,
+		["wh2_main_lustria_glade"] = true,
+		["wh2_main_naggaroth_glade"] = true,
+		["wh2_main_northern_dark_lands_karak_vlag"] = true,
+		["wh2_main_northern_dark_lands_seep_gore"] = true,
+		["wh2_main_northern_dark_lands_silver_pinnacle"] = true,
+		["wh2_main_old_world_glade"] = true,
+		["wh2_main_southern_dark_lands_deadrock_gap"] = true,
+		["wh2_main_southern_dark_lands_desolation_of_drakenmoor"] = true,
+		["wh2_main_vor_lustria_glade"] = true,
+		["wh2_main_vor_naggaroth_glade"] = true,
+		["wh2_main_vor_the_chill_road_atorak"] = true,
     ["wh2_main_gnoblar_country_haunted_forest"] = true,
     ["wh2_main_saphery_port_elistor"] = true,
     ["wh_main_ice_tooth_mountains_doomkeep"] = true,

@@ -202,8 +202,12 @@ function CM:is_multiplayer() end
 function CM:is_new_game() end
 
 ---@param force boolean?
----@return string
+---@return CA_FACTION
 function CM:get_local_faction(force) end
+
+---@param force boolean?
+---@return string
+function CM:get_local_faction_name(force) end
 
 ---@return string
 function CM:whose_turn_is_it() end
@@ -1356,6 +1360,10 @@ function MISSION_MANAGER:trigger(dismiss_callback, delay) end
 ---@param mission_key string
 ---@return MISSION_MANAGER
 function CM:get_mission_manager(mission_key) end
+
+---@param unit_interface CA_UNIT
+---@param rank number
+function CM:add_experience_to_unit(unit_interface, rank) end
 
 ---@class RAM
 RAM = {}
