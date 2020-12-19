@@ -41,7 +41,7 @@ function CA_UIC:CurrentState() end
 
 function CA_UIC:DestroyChildren() end
 
----@return (number, number)
+---@return number, number
 function CA_UIC:Dimensions() end
 
 ---@param arg number | string
@@ -61,7 +61,7 @@ function CA_UIC:MoveTo(x, y) end
 ---@return CA_Component
 function CA_UIC:Parent() end
 
----@return (number, number)
+---@return number, number
 function CA_UIC:Position() end
 
 ---@param w number
@@ -126,7 +126,7 @@ function CA_UIC:PropagatePriority(priority) end
 ---@return number
 function CA_UIC:Priority() end
 
----@return (number, number)
+---@return number, number
 function CA_UIC:Bounds() end
 
 ---@return number
@@ -257,7 +257,7 @@ function CM:override_ui(override, opt) end
 ---@param opt bool
 function CM:steal_user_input(opt) end
 
----@return (number, number, number, number)
+---@return number, number, number, number
 function CM:get_camera_position() end
 
 ---@param unknown number
@@ -454,11 +454,11 @@ function CM:force_confederation(confederator, confederated) end
 function CM:force_alliance(faction, other_faction, unknown_bool) end
 
 ---@param pos int) --> (CA_CQI
----@return (CA_CQI, CA_CQI, string)
+---@return CA_CQI, CA_CQI, string
 function CM:pending_battle_cache_get_defender(pos) end
 
 ---@param pos int) --> (CA_CQI
----@return (CA_CQI, CA_CQI, string)
+---@return CA_CQI, CA_CQI, string
 function CM:pending_battle_cache_get_attacker(pos) end
 
 ---@param char CA_CHAR
@@ -763,6 +763,9 @@ function CA_MILITARY_FORCE_LIST:item_at(index) end
 
 ---@class CA_UNIT
 CA_UNIT = {}
+
+---@return number
+function CA_UNIT:command_queue_index() end
 
 ---@return CA_FACTION
 function CA_UNIT:faction() end
@@ -1193,11 +1196,18 @@ core = CORE
 function CORE:get_ui_root() end
 
 ---@param listenerName string
+---@param eventName string
+---@param predicate function
+---@param callback function
+---@param is_repeating bool
+function CORE:add_listener(listenerName, eventName, predicate, callback, is_repeating) end
+
+---@param listenerName string
 function CORE:remove_listener(listenerName) end
 
 function CORE:add_ui_created_callback() end
 
----@return (number, number)
+---@return number, number
 function CORE:get_screen_resolution() end
 
 ---@param event_name string
@@ -1440,9 +1450,9 @@ function INVASION_MANAGER:is_valid_position(x, y) end
 function INVASION_MANAGER:get_invasion(key) end
 function INVASION_MANAGER:remove_invasion(key) end
 function INVASION_MANAGER:kill_invasion_by_key(key) end
-function INVASION_MANAGER:remove_invasion(self.key) end
-function INVASION_MANAGER:remove_invasion(self.key) end
-function INVASION_MANAGER:remove_invasion(self.key) end
+function INVASION_MANAGER:remove_invasion(key) end
+function INVASION_MANAGER:remove_invasion(key) end
+function INVASION_MANAGER:remove_invasion(key) end
 
 ---@class INVASION
 INVASION = {}
@@ -1548,7 +1558,6 @@ load_script_libraries = function() end
 get_cm = function() end
 
 ---@param context WHATEVER?
----@return map<string, vector<function(context:WHATEVER?)>>
 get_events = function(context) end
 
 ---@param char CA_CHAR
@@ -1557,9 +1566,7 @@ Get_Character_Side_In_Last_Battle = function(char) end
 
 q_setup = function() end
 
----@param quest_table vector<vector<string | number>>
 ---@param subtype string
----@param infotext vector<string | number>
 set_up_rank_up_listener = function(quest_table, subtype, infotext) end
 
 ---@param attacker string
@@ -1585,3 +1592,6 @@ distance_squared = function(x1, y1, x2, y2) end
 
 ---@param degrees number
 d_to_r = function(degrees) end
+
+---@param fun function
+function CM:add_first_tick_callback(fun) end
