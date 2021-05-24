@@ -15,8 +15,8 @@ end
 local dout = _G.dout or function(...) end
 
 -- useful to have this during dev, safely ignore
-cm:remove_callback("pj_unit_upgrades_callback_id_1")
-cm:remove_callback("pj_unit_upgrades_callback_id_2")
+real_timer.unregister("pj_unit_upgrades_callback_id_1")
+real_timer.unregister("pj_unit_upgrades_callback_id_2")
 
 --- Multiply the unit cost with this to get the upgrade cost.
 mod.upgrade_cost_multiplier = 0.33
@@ -26,6 +26,8 @@ mod.num_unit_cards_selected = 0
 
 --- Default cost of a unit for any cost calculations.
 mod.default_unit_cost = 2500
+
+mod.max_upgrade_cost = mod.max_upgrade_cost or 500
 
 --- Building keys in each player horde army, gets built on CharacterSelected.
 --- Keys can sometimes be for example wh_main_horde_chaos_marauders_1wh_main_chs_chaos, so compare using string.starts_with
@@ -49,13 +51,23 @@ mod.additional_unit_building_req = building_requirements.additional_building_req
 
 mod.add_unit_recruitment_buildings = function(t)
 	for main_unit_key, building_keys in pairs(t) do
-		mod.unit_recruitment_buildings[main_unit_key] = building_keys
+		mod.unit_recruitment_buildings[main_unit_key] = mod.unit_recruitment_buildings[main_unit_key] or {}
+		for _, building_key in ipairs(building_keys) do
+			if not table_contains(mod.unit_recruitment_buildings[main_unit_key], building_key) then
+				table.insert(mod.unit_recruitment_buildings[main_unit_key], building_key)
+			end
+		end
 	end
 end
 
 mod.add_additional_unit_building_req = function(t)
 	for main_unit_key, building_keys in pairs(t) do
-		mod.additional_unit_building_req[main_unit_key] = building_keys
+		mod.additional_unit_building_req[main_unit_key] = mod.additional_unit_building_req[main_unit_key] or {}
+		for _, building_key in ipairs(building_keys) do
+			if not table_contains(mod.additional_unit_building_req[main_unit_key], building_key) then
+				table.insert(mod.additional_unit_building_req[main_unit_key], building_key)
+			end
+		end
 	end
 end
 
@@ -121,7 +133,7 @@ mod.hide_retrain_buttons = function()
 	if button_group then
 		local index = 1
 		while(true) do
-			local retrain_button_id = "retrain_button_"..tostring(index)
+			local retrain_button_id = "pj_retrain_button_"..tostring(index)
 			local retrain_button_addr = button_group:Find(retrain_button_id)
 			if not retrain_button_addr then
 				break
@@ -146,7 +158,7 @@ mod.add_retrain_button = function(index)
 		"button_retrain"
 	)
 	if retrain then
-		local retrain_button_id = "retrain_button_"..tostring(index)
+		local retrain_button_id = "pj_retrain_button_"..tostring(index)
 		local existing_retrain_address = UIComponent(retrain:Parent()):Find(retrain_button_id)
 		local retrain_button
 		if not existing_retrain_address then
@@ -249,20 +261,46 @@ mod.apply_mutagen_scrap_upgrades = function(unit_interface, unit_scrap_upgrades)
 	end
 end
 
+--- Unit_name is in the form of "[[url:#/unit/wh_main_emp_inf_swordsmen]]Swordsmen[[/url]]" here
+--- so we have to get rid of the url part.
+mod.get_unit_name_without_url_part = function(unit_name)
+	local _, end_index = string.find(unit_name, "]]")
+	if not end_index or end_index < 0 then return end
+
+	local without_url_opening = string.sub(unit_name, end_index+1)
+	local start_index = string.find(without_url_opening, "[[")
+	if not start_index or start_index < 0 then return end
+
+	local unti_name_without_url = string.sub(without_url_opening, 1, start_index-1)
+	if not unti_name_without_url or unti_name_without_url == "" then return end
+
+	return unti_name_without_url
+end
+
+mod.change_unit_name = function(unit_interface, unit_name)
+	cm:change_custom_unit_name(unit_interface, unit_name)
+end
+
 ---@param commander CA_CHAR
-mod.adjust_new_unit = function(commander, old_units, unit_health, old_unit_rank, is_hp_adjusted)
+mod.adjust_new_unit = function(commander, old_units, unit_health, old_unit_rank, unit_name, is_hp_adjusted)
 	local new_rank = math.floor(old_unit_rank/2)
 
 	local num_items_after = commander:military_force():unit_list():num_items()
 	for i=0, num_items_after-1 do
 		local unit_interface = commander:military_force():unit_list():item_at(i)
 		if not table_contains(old_units, unit_interface) then
-			local unit_hp = unit_health*0.01*mod.get_hp_lost_percent(commander:faction())
+			local unit_hp = unit_health*0.01
 			if is_hp_adjusted then
+				unit_hp = unit_health*0.01*mod.get_hp_lost_percent(commander:faction())
 				cm:set_unit_hp_to_unary_of_maximum(unit_interface, unit_hp)
 				cm:add_experience_to_unit(unit_interface, new_rank)
 			else
+				cm:set_unit_hp_to_unary_of_maximum(unit_interface, unit_hp)
 				cm:add_experience_to_unit(unit_interface, old_unit_rank)
+			end
+
+			if unit_name and unit_name ~= "" then
+				mod.change_unit_name(unit_interface, unit_name)
 			end
 
 			local scrap_upgrades_str = ""
@@ -273,26 +311,9 @@ mod.adjust_new_unit = function(commander, old_units, unit_health, old_unit_rank,
 			end
 
 			local commander_cqi = commander:command_queue_index()
-			CampaignUI.TriggerCampaignScriptEvent(cm:get_faction(cm:get_local_faction_name(true)):command_queue_index(), "pj_unit_upgrades_set_unit_hp|"..tostring(commander_cqi).."|"..tostring(i).."|"..tostring(unit_hp).."|"..tostring(new_rank).."|"..tostring(scrap_upgrades_str))
+			CampaignUI.TriggerCampaignScriptEvent(cm:get_faction(cm:get_local_faction_name(true)):command_queue_index(), "pj_unit_upgrades_set_unit_hp|"..tostring(commander_cqi).."|"..tostring(i).."|"..tostring(unit_hp).."|"..tostring(unit_name or "").."|"..tostring(new_rank).."|"..tostring(scrap_upgrades_str))
 		end
 	end
-end
-
-local digForComponent = nil
-digForComponent = function(startingComponent, componentName)
-	local childCount = startingComponent:ChildCount()
-	for i=0, childCount-1  do
-			local child = UIComponent(startingComponent:Find(i))
-			if child:Id() == componentName then
-					return child
-			else
-					local dugComponent = digForComponent(child, componentName)
-					if dugComponent then
-							return dugComponent
-					end
-			end
-	end
-	return nil
 end
 
 --- Refresh the whole army UI.
@@ -304,8 +325,10 @@ mod.simulate_army_refresh = function()
 		"layout","bar_small_top", "TabGroup", "tab_units"
 	)
 
+	local do_we_close_the_panel_after = false
 	if tab_units:CurrentState() ~= "selected" then
 		tab_units:SimulateLClick()
+		do_we_close_the_panel_after = true
 	end
 
 	local ui_root = core:get_ui_root()
@@ -326,11 +349,16 @@ mod.simulate_army_refresh = function()
 		if comp:Id() == "list_box" then
 			for j=0, comp:ChildCount()-1 do
 				local char_row = UIComponent(comp:Find(j))
-				local char_name_label = digForComponent(char_row, "dy_character_name")
+				local char_name_label = find_uicomponent(char_row, "indent_parent", "dy_character_name")
 				local char_name = char_name_label and char_name_label:GetStateText()
-				if char_name == mod.commander_name then
-					CampaignUI.ClearSelection()
+				local level_label = char_row and find_uicomponent(char_row, "indent_parent", "rank", "dy_rank")
+				local level = level_label and level_label:GetStateText()
+
+				if char_name and level and char_name == mod.commander_name and level == mod.commander_level then
 					char_row:SimulateLClick()
+					if do_we_close_the_panel_after then
+						tab_units:SimulateLClick()
+					end
 					return
 				end
 			end
@@ -351,20 +379,24 @@ local function binding_iter(binding)
 	end
 end
 
-mod.build_region_data = function()
-	mod.faction_building_state = {} -- reset faction building state
+---@param faction CA_FACTION
+mod.build_region_data = function(faction)
+	local faction_building_state = {} -- reset faction building state
 	---@type CA_REGION
-	for region in binding_iter(cm:get_faction(cm:get_local_faction_name(true)):region_list()) do
+	for region in binding_iter(faction:region_list()) do
 		local province_name = region:province_name()
-		mod.faction_building_state[province_name] = mod.faction_building_state[province_name] or {}
+		faction_building_state[province_name] = faction_building_state[province_name] or {}
 
 		---@type CA_SLOT
 		for slot in binding_iter(region:slot_list()) do
 			if slot and slot:has_building() then
-				mod.faction_building_state[province_name][slot:building():name()] = true
+				faction_building_state[province_name][slot:building():name()] = true
 			end
 		end
 	end
+
+	mod.faction_building_states = mod.faction_building_states or {}
+	mod.faction_building_states[faction:name()] = faction_building_state
 end
 
 mod.is_unit_recruitable_in_horde = function(unit_key, commander_cqi)
@@ -399,7 +431,11 @@ mod.is_unit_recruitable_in_horde = function(unit_key, commander_cqi)
 	return primary_recruitment_building_exists and additional_unit_building_req_exists
 end
 
-mod.is_unit_recruitable_in_province = function(unit_key, province_name)
+mod.is_unit_recruitable_in_province = function(unit_key, province_name, faction_key)
+	if not mod.faction_building_states then return end
+	local faction_building_state = mod.faction_building_states[faction_key]
+	if not faction_building_state then return end
+
 	local unit_recruitment_buildings = mod.unit_recruitment_buildings[unit_key] or {}
 	local additional_unit_building_req = mod.additional_unit_building_req[unit_key] or {}
 
@@ -413,20 +449,24 @@ mod.is_unit_recruitable_in_province = function(unit_key, province_name)
 
 	for _, building_name in ipairs(unit_recruitment_buildings) do
 		primary_recruitment_building_exists = primary_recruitment_building_exists
-			or mod.faction_building_state[province_name] and mod.faction_building_state[province_name][building_name]
+			or faction_building_state[province_name] and faction_building_state[province_name][building_name]
 	end
 	for _, building_name in ipairs(additional_unit_building_req) do
 		additional_unit_building_req_exists = additional_unit_building_req_exists
-			or mod.faction_building_state[province_name] and mod.faction_building_state[province_name][building_name]
+			or faction_building_state[province_name] and faction_building_state[province_name][building_name]
 	end
 
 	return primary_recruitment_building_exists and additional_unit_building_req_exists
 end
 
-mod.is_unit_recruitable_anywhere = function(unit_key)
+mod.is_unit_recruitable_anywhere = function(unit_key, faction_key)
+	if not mod.faction_building_states then return end
+	local faction_building_state = mod.faction_building_states[faction_key]
+	if not faction_building_state then return end
+
 	-- loop through all the provinces the local faction has a region in
-	for province_name, _ in pairs(mod.faction_building_state) do
-		if mod.is_unit_recruitable_in_province(unit_key, province_name) then
+	for province_name, _ in pairs(faction_building_state) do
+		if mod.is_unit_recruitable_in_province(unit_key, province_name, faction_key) then
 			return true
 		end
 	end
@@ -434,9 +474,49 @@ mod.is_unit_recruitable_anywhere = function(unit_key)
 	return false
 end
 
-mod.global_rec_cost_formula = function(x) return 1.5*math.max(200, x) end
-mod.local_rec_cost_formula = function(x) return math.max(100, x) end
-mod.default_cost_formula = function(x) return 2*math.max(250, x) end
+mod.global_rec_cost_formula = function(x) return 1.5*math.max(mod.max_upgrade_cost*0.4, x) end
+mod.local_rec_cost_formula = function(x) return math.max(mod.max_upgrade_cost/5, x) end
+mod.default_cost_formula = function(x) return 2*math.max(mod.max_upgrade_cost/2, x) end
+
+mod.is_over_tabletop_caps = function(char_cqi, unit_key_to, unit_key_from)
+	local is_over_tabletop_caps = false
+
+	local success, result = pcall(
+		function()
+			if rm then
+				local rec_char = rm:get_character_by_cqi(char_cqi)
+				if rec_char then
+					local rec_unit = rm:get_unit(unit_key_to, rec_char)
+					local rec_unit_from = rm:get_unit(unit_key_from, rec_char)
+
+					if rec_unit and rec_unit_from then
+						local groups = rec_unit:groups()
+						local weight = rec_unit:weight()
+						local groups_from = rec_unit_from:groups()
+						local weight_from = rec_unit_from:weight()
+
+						for groupID, _ in pairs(groups) do
+							local current_count = rec_char:get_group_counts_on_character(groupID)
+							local max_count_for_group = rec_char:get_quantity_limit_for_group(groupID)
+							if groups_from[groupID] then
+								current_count = weight_from - weight_from
+							end
+							is_over_tabletop_caps = is_over_tabletop_caps or (current_count+weight > max_count_for_group)
+						end
+					end
+				end
+			end
+		end
+	)
+
+	if not success then
+		out("BIG FAT SCRIPT ERROR")
+		out(tostring(result))
+		out(tostring(debug.traceback()))
+	end
+
+	return is_over_tabletop_caps
+end
 
 --- Repeat this to update the UI tooltips.
 mod.update_UI = function()
@@ -494,6 +574,7 @@ mod.update_UI = function()
 	local unit_rank = mod.unit_rank
 	local province_name = not commander:region():is_null_interface() and commander:region():province_name()
 	local local_faction_obj = cm:get_faction(cm:get_local_faction_name(true))
+	local faction_name = local_faction_obj:name()
 
 	local unit_key_from = unit_to_upgrade:unit_key()
 	local unit_upgrades = mod.get_unit_upgrades(unit_key_from)
@@ -509,6 +590,9 @@ mod.update_UI = function()
 			if not pooled_res or pooled_res:is_null_interface() then
 				are_prerequisites_valid = false
 			end
+		end
+		if unit_upgrade.subculture and local_faction_obj:subculture() ~= unit_upgrade.subculture then
+			are_prerequisites_valid = false
 		end
 
 		if are_prerequisites_valid then
@@ -529,13 +613,13 @@ mod.update_UI = function()
 
 			local cost_formula = mod.default_cost_formula
 			local upgrade_rank_adjustment = 0
-			if province_name and mod.is_unit_recruitable_in_province(unit_key_to, province_name) then
+			if province_name and mod.is_unit_recruitable_in_province(unit_key_to, province_name, faction_name) then
 				upgrade_rank_adjustment = -2
 				cost_formula = mod.local_rec_cost_formula
 			elseif is_horde and mod.is_unit_recruitable_in_horde(unit_key_to, mod.commander_cqi) then
 				upgrade_rank_adjustment = -2
 				cost_formula = mod.local_rec_cost_formula
-			elseif mod.is_unit_recruitable_anywhere(unit_key_to) then
+			elseif mod.is_unit_recruitable_anywhere(unit_key_to, faction_name) then
 				upgrade_rank_adjustment = -1
 				cost_formula = mod.global_rec_cost_formula
 			end
@@ -552,6 +636,8 @@ mod.update_UI = function()
 				dout(unit_key_to.." DOESN'T HAVE A VALID LOC KEY")
 			end
 
+			local is_unit_rank_too_low_to_upgrade = unit_rank < unit_upgrade_rank+upgrade_rank_adjustment
+
 			local new_tooltip_text = ""
 			local rank_required = math.max(0, unit_upgrade_rank+upgrade_rank_adjustment)
 			if rank_required ~= 0 then
@@ -560,10 +646,10 @@ mod.update_UI = function()
 				localized_tooltip_text = string.gsub(localized_tooltip_text, "REPLACE_RANK_REQUIRED", tostring(rank_required))
 				new_tooltip_text = localized_tooltip_text
 
-				if unit_rank < unit_upgrade_rank+upgrade_rank_adjustment then
+				if is_unit_rank_too_low_to_upgrade then
 					local localized_current_rank = effect.get_localised_string("pj_unit_upgrades_loc_current_rank")
 					localized_current_rank = string.gsub(localized_current_rank, "REPLACE_CURRENT_RANK", tostring(unit_rank))
-					new_tooltip_text = new_tooltip_text.."\n"..localized_current_rank
+					new_tooltip_text = new_tooltip_text.."\n".."[[col:red]]"..localized_current_rank.."[[/col]]"
 				end
 			else
 				local localized_tooltip_text = effect.get_localised_string("pj_unit_upgrades_loc_tooltip_text_no_rank_req")
@@ -594,6 +680,8 @@ mod.update_UI = function()
 			if not mod.we_ignore_unit_caps then
 				is_over_the_unit_cap = local_faction_obj:unit_cap_remaining(unit_key_to) == 0
 			end
+
+			local is_over_tabletop_caps = mod.is_over_tabletop_caps(mod.commander_cqi, unit_key_to, unit_key_from)
 
 			if unit_upgrade.pooled_res and unit_upgrade.pooled_res_amount then
 				local res_upgrade_cost = unit_upgrade.pooled_res_amount
@@ -639,8 +727,8 @@ mod.update_UI = function()
 					new_tooltip_text = new_tooltip_text.."\n"..localized_must_have_oathgold
 				else
 					local localized_must_have_pooled_res = effect.get_localised_string("pj_unit_upgrades_loc_must_have_pooled_res")
-					localized_must_have_pooled_res = string.gsub(localized_must_have_pooled_res, "POOLED_RES_REQUIRED", tostring(res_upgrade_cost))
 					localized_must_have_pooled_res = string.gsub(localized_must_have_pooled_res, "POOLED_RES_REQUIRED_NAME", localized_pooled_res)
+					localized_must_have_pooled_res = string.gsub(localized_must_have_pooled_res, "POOLED_RES_REQUIRED", tostring(res_upgrade_cost))
 					new_tooltip_text = new_tooltip_text.."\n"..localized_must_have_pooled_res
 				end
 			end
@@ -650,8 +738,12 @@ mod.update_UI = function()
 				end
 			end
 			if is_over_the_unit_cap then
-				local localized_must_have_funds = effect.get_localised_string("pj_unit_upgrades_loc_over_the_unit_cap")
-				new_tooltip_text = new_tooltip_text.."\n"..localized_must_have_funds
+				local localized_must_have_caps = effect.get_localised_string("pj_unit_upgrades_loc_over_the_unit_cap")
+				new_tooltip_text = new_tooltip_text.."\n"..localized_must_have_caps
+			end
+			if is_over_tabletop_caps then
+				local localized_must_have_tabletop_caps = effect.get_localised_string("pj_unit_upgrades_loc_over_the_tabletop_unit_cap")
+				new_tooltip_text = new_tooltip_text.."\n"..localized_must_have_tabletop_caps
 			end
 
 			retrain_button:SetTooltipText(new_tooltip_text, true)
@@ -660,7 +752,7 @@ mod.update_UI = function()
 				retrain_button:SetImagePath(unit_upgrade.icon)
 			end
 
-			if unit_rank < unit_upgrade_rank+upgrade_rank_adjustment
+			if is_unit_rank_too_low_to_upgrade
 				or in_foreign_territory
 				or not is_near_settlement
 				or not are_funds_adequate
@@ -668,6 +760,7 @@ mod.update_UI = function()
 				or not is_req_fun_valid
 				or is_over_the_unit_cap
 				or are_too_many_units_selected
+				or is_over_tabletop_caps
 			then
 				retrain_button:SetState("inactive")
 			else
@@ -675,17 +768,83 @@ mod.update_UI = function()
 			end
 		end
 	end
+end
 
-	-- remember the unit disband button so we can click it through code
-	local disband = find_uicomponent(core:get_ui_root(),
-		"units_panel",
-		"main_units_panel",
-		"button_group_unit",
-		"button_disband"
-	)
-	if disband then
-		mod.disband = disband
+mod.disband_unit = function()
+	if not mod.commander_cqi then
+		return
 	end
+
+	local commander = cm:get_character_by_cqi(mod.commander_cqi)
+	if not commander or commander:is_null_interface() then
+		return
+	end
+
+	--- disband the unit by simulating the steps needed for the disband unit button
+	--- keep running this callback until the disband dialogue box pops up
+	real_timer.unregister("pj_upgrade_repeat_disband_unit_confirmation")
+	real_timer.register_repeating("pj_upgrade_repeat_disband_unit_confirmation", 0)
+
+	local units = find_uicomponent(core:get_ui_root(), "units_panel", "main_units_panel", "units")
+	units:TriggerShortcut("current_selection_disband")
+end
+
+mod.refresh_ttc = function(char_cqi, unit_key_from, unit_key_to)
+	if not rm then return end
+
+	local rec_char = rm:get_character_by_cqi(char_cqi)
+	if not rec_char then return end
+
+	rec_char:remove_unit_from_army(unit_key_from)
+	rec_char:add_unit_to_army(unit_key_to)
+
+	rm:check_individual_unit_on_character(unit_key_from, rec_char)
+	rm:check_individual_unit_on_character(unit_key_to, rec_char)
+	rm:enforce_all_units_on_current_character()
+	rm:output_state(rec_char)
+end
+
+mod.add_new_unit_logic = function(unit_key, commander, unit_health, unit_rank, unit_name, unit_upgrade, already_disbanded)
+	local old_units = {}
+	local num_items = commander:military_force():unit_list():num_items()
+	for i=0, num_items-1 do
+		local unit_interface = commander:military_force():unit_list():item_at(i)
+		table.insert(old_units, unit_interface)
+	end
+
+	local cost = mod.active_upgrade_cost or 0
+	local pooled_res = unit_upgrade.pooled_res or "NONE"
+	local res_cost = unit_upgrade.pooled_res and unit_upgrade.pooled_res_amount or 0
+	local no_hp_loss = unit_upgrade.no_hp_loss
+
+	local commander_cqi = commander:command_queue_index()
+	local faction_cqi = cm:get_faction(cm:get_local_faction_name(true)):command_queue_index()
+
+	if not already_disbanded then
+		mod.disband_unit()
+	end
+
+	local is_to_agent_upgrade = unit_upgrade.agent_type and unit_upgrade.agent_subtype
+	if is_to_agent_upgrade then
+		local agent_type = unit_upgrade.agent_type
+		local agent_subtype = unit_upgrade.agent_subtype
+		local pos_x, pos_y = cm:find_valid_spawn_location_for_character_from_character(cm:get_local_faction_name(true), cm:char_lookup_str(commander), true, 1)
+		CampaignUI.TriggerCampaignScriptEvent(faction_cqi, "pj_unit_upgrades_grant_agent|"..tostring(commander_cqi).."|"..agent_type.."|"..agent_subtype.."|"..tostring(pos_x).."|"..tostring(pos_y).."|"..tostring(cost).."|"..pooled_res.."|"..tostring(res_cost))
+	else
+		cm:grant_unit_to_character(cm:char_lookup_str(commander), unit_key)
+		CampaignUI.TriggerCampaignScriptEvent(faction_cqi, "pj_unit_upgrades_grant_unit|"..tostring(commander_cqi).."|"..unit_key.."|"..tostring(cost).."|"..pooled_res.."|"..tostring(res_cost))
+	end
+
+	cm:callback(
+		function()
+			if not is_to_agent_upgrade then
+				mod.adjust_new_unit(commander, old_units, unit_health, unit_rank, unit_name, not no_hp_loss)
+			end
+
+			mod.simulate_army_refresh()
+		end,
+		0
+	)
 end
 
 --- Create a new unit in the commander army.
@@ -693,65 +852,33 @@ end
 --- To find the interface of the new unit we compare all the interfaces before giving
 --- the unit to those after.
 --- If at 20 units we have to disband then add unit, otherwise we add unit, then disband.
-mod.add_new_unit = function(unit_key, commander, unit_health, unit_rank, unit_upgrade)
+mod.add_new_unit = function(unit_key, commander, unit_health, unit_rank, unit_name, unit_upgrade)
 	if not commander or commander:is_null_interface() then
 		return
 	end
 
 	local already_disbanded = false
-	local delay_time = 0.1
+	local delay_time = 0
 	local starting_num_items = commander:military_force():unit_list():num_items()
-	if starting_num_items == 20 then
-		already_disbanded = true
-		delay_time = 1
-		mod.disband:SimulateLClick()
+
+	already_disbanded = true
+	delay_time = 1
+	if starting_num_items < 20 then
+		delay_time = 0.1
 	end
 
-	cm:callback(
-		function()
-			local old_units = {}
-			local num_items = commander:military_force():unit_list():num_items()
-			for i=0, num_items-1 do
-				local unit_interface = commander:military_force():unit_list():item_at(i)
-				table.insert(old_units, unit_interface)
-			end
+	mod.disband_unit()
 
-			local cost = mod.active_upgrade_cost or 0
-			local pooled_res = unit_upgrade.pooled_res or "NONE"
-			local res_cost = unit_upgrade.pooled_res and unit_upgrade.pooled_res_amount or 0
-			local no_hp_loss = unit_upgrade.no_hp_loss
-
-			local commander_cqi = commander:command_queue_index()
-			local faction_cqi = cm:get_faction(cm:get_local_faction_name(true)):command_queue_index()
-
-			local is_to_agent_upgrade = unit_upgrade.agent_type and unit_upgrade.agent_subtype
-			if is_to_agent_upgrade then
-				local agent_type = unit_upgrade.agent_type
-				local agent_subtype = unit_upgrade.agent_subtype
-				local pos_x, pos_y = cm:find_valid_spawn_location_for_character_from_character(cm:get_local_faction_name(true), cm:char_lookup_str(commander), true, 1)
-				CampaignUI.TriggerCampaignScriptEvent(faction_cqi, "pj_unit_upgrades_grant_agent|"..tostring(commander_cqi).."|"..agent_type.."|"..agent_subtype.."|"..tostring(pos_x).."|"..tostring(pos_y).."|"..tostring(cost).."|"..pooled_res.."|"..tostring(res_cost))
-			else
-				cm:grant_unit_to_character(cm:char_lookup_str(commander), unit_key)
-				CampaignUI.TriggerCampaignScriptEvent(faction_cqi, "pj_unit_upgrades_grant_unit|"..tostring(commander_cqi).."|"..unit_key.."|"..tostring(cost).."|"..pooled_res.."|"..tostring(res_cost))
-			end
-
-			cm:callback(
-				function()
-					if not is_to_agent_upgrade then
-						mod.adjust_new_unit(commander, old_units, unit_health, unit_rank, not no_hp_loss)
-					end
-
-					if not already_disbanded then
-						mod.disband:SimulateLClick()
-					else
-						mod.simulate_army_refresh()
-					end
-				end,
-				0.1
-			)
-		end,
-		delay_time
-	)
+	if delay_time > 0 then
+		cm:callback(
+			function()
+				mod.add_new_unit_logic(unit_key, commander, unit_health, unit_rank, unit_name, unit_upgrade, already_disbanded)
+			end,
+			delay_time
+		)
+	else
+		mod.add_new_unit_logic(unit_key, commander, unit_health, unit_rank, unit_name, unit_upgrade, already_disbanded)
+	end
 end
 
 --- Show, creating if needed, the upgrade icon on unit cards.
@@ -832,21 +959,6 @@ mod.get_num_agents = function()
 	return 0
 end
 
---- Parse the rank tooltip in non-english localized games.
---- Returns rank as a number, defaults to 0.
-mod.get_rank_from_non_english_tooltip = function(foreign_tooltip)
-	local unit_rank = 0
-	local rank_start_index = nil
-	for i=9, 0, -1 do
-		rank_start_index = rank_start_index or foreign_tooltip:find(tostring(i))
-	end
-	if rank_start_index then
-		local rank_substring = foreign_tooltip:sub(rank_start_index, rank_start_index)
-		unit_rank = tonumber(rank_substring)
-	end
-	return unit_rank or 0
-end
-
 mod.update_upgrade_icons = function()
 	if not mod.commander_cqi then
 		return
@@ -865,6 +977,7 @@ mod.update_upgrade_icons = function()
 	local army_size = unit_list:num_items()
 
 	local local_faction_obj = cm:get_faction(cm:get_local_faction_name(true))
+	local faction_name = local_faction_obj:name()
 
 	mod.num_unit_cards_selected = 0
 
@@ -894,70 +1007,62 @@ mod.update_upgrade_icons = function()
 		end
 
 		if unit_index > 50 then
-			cm:remove_callback("pj_unit_upgrades_callback_id_2")
+			real_timer.unregister("pj_unit_upgrades_callback_id_2")
 			break
 		end
 
 		local show_upgrade_icon = false
-		local exp_text = exp:GetTooltipText()
-		if exp_text then
-			local unit_rank = 0
-			if exp_text ~= "" then
-				local unit_rank_str = exp_text:gsub("Unit rank ", "")
-				unit_rank = tonumber(unit_rank_str) or 0
+		local unit_rank = tonumber(exp:CurrentState() or 0)
 
-				-- if we didn't get a unit rank run this non-english tooltip check
-				if unit_rank == 0 then
-					unit_rank = mod.get_rank_from_non_english_tooltip(exp_text)
-				end
-			end
-			unit_rank = unit_rank or 0
+		if army_size > unit_index+num_agents then
+			local unit_to_upgrade = unit_list:item_at(unit_index+num_agents)
+			if unit_to_upgrade and not unit_to_upgrade:is_null_interface() then
+				local unit_key = unit_to_upgrade:unit_key()
 
-			if army_size > unit_index+num_agents then
-				local unit_to_upgrade = unit_list:item_at(unit_index+num_agents)
-				if unit_to_upgrade and not unit_to_upgrade:is_null_interface() then
-					local unit_key = unit_to_upgrade:unit_key()
+				local unit_upgrades = mod.get_unit_upgrades(unit_key)
+				for _, unit_upgrade in ipairs(unit_upgrades) do
+					local show_upgrade_icon_for_current_unit_upgrade = false
+					local unit_key_to = unit_upgrade[1]
+					local upgrade_rank_adjustment = 0
+					if province_name and mod.is_unit_recruitable_in_province(unit_key_to, province_name, faction_name) then
+						upgrade_rank_adjustment = -2
+					elseif mod.is_unit_recruitable_anywhere(unit_key_to, faction_name) then
+						upgrade_rank_adjustment = -1
+					end
 
-					local unit_upgrades = mod.get_unit_upgrades(unit_key)
-					for _, unit_upgrade in ipairs(unit_upgrades) do
-						local show_upgrade_icon_for_current_unit_upgrade = false
-						local unit_key_to = unit_upgrade[1]
-						local upgrade_rank_adjustment = 0
-						if province_name and mod.is_unit_recruitable_in_province(unit_key_to, province_name) then
-							upgrade_rank_adjustment = -2
-						elseif mod.is_unit_recruitable_anywhere(unit_key_to) then
-							upgrade_rank_adjustment = -1
+					if unit_upgrade[2]+upgrade_rank_adjustment <= unit_rank and not unit_upgrade.no_icon then
+						show_upgrade_icon_for_current_unit_upgrade = true
+
+						if unit_upgrade.req_fun then
+							local data = {
+								unit_key_to = unit_key_to,
+								unit_key_from = unit_key,
+							}
+							show_upgrade_icon_for_current_unit_upgrade = show_upgrade_icon_for_current_unit_upgrade and unit_upgrade.req_fun(char, data)
 						end
 
-						if unit_upgrade[2]+upgrade_rank_adjustment <= unit_rank and not unit_upgrade.no_icon then
-							show_upgrade_icon_for_current_unit_upgrade = true
-
-							if unit_upgrade.req_fun then
-								local data = {
-									unit_key_to = unit_key_to,
-									unit_key_from = unit_key,
-								}
-								show_upgrade_icon_for_current_unit_upgrade = show_upgrade_icon_for_current_unit_upgrade and unit_upgrade.req_fun(char, data)
-							end
-
-							-- check pooled resource requirement
-							if unit_upgrade.pooled_res and unit_upgrade.pooled_res_amount then
-								local pooled_res = local_faction_obj:pooled_resource(unit_upgrade.pooled_res)
-								if not pooled_res or pooled_res:is_null_interface() or pooled_res:value() < unit_upgrade.pooled_res_amount then
-									show_upgrade_icon_for_current_unit_upgrade = false
-								end
-							end
-
-							local is_over_the_unit_cap = false
-							if not mod.we_ignore_unit_caps then
-								is_over_the_unit_cap = local_faction_obj:unit_cap_remaining(unit_key_to) == 0
-							end
-							if is_over_the_unit_cap then
+						-- check pooled resource requirement
+						if unit_upgrade.pooled_res and unit_upgrade.pooled_res_amount then
+							local pooled_res = local_faction_obj:pooled_resource(unit_upgrade.pooled_res)
+							if not pooled_res or pooled_res:is_null_interface() or pooled_res:value() < unit_upgrade.pooled_res_amount then
 								show_upgrade_icon_for_current_unit_upgrade = false
 							end
-
-							show_upgrade_icon = show_upgrade_icon or show_upgrade_icon_for_current_unit_upgrade
 						end
+
+						local is_over_the_unit_cap = false
+						if not mod.we_ignore_unit_caps then
+							is_over_the_unit_cap = local_faction_obj:unit_cap_remaining(unit_key_to) == 0
+						end
+						if is_over_the_unit_cap then
+							show_upgrade_icon_for_current_unit_upgrade = false
+						end
+
+						local is_over_tabletop_caps = mod.is_over_tabletop_caps(mod.commander_cqi, unit_key_to, unit_key)
+						if is_over_tabletop_caps then
+							show_upgrade_icon_for_current_unit_upgrade = false
+						end
+
+						show_upgrade_icon = show_upgrade_icon or show_upgrade_icon_for_current_unit_upgrade
 					end
 				end
 			end
@@ -993,11 +1098,15 @@ core:add_listener(
 				end
 		end)
 
-		local commander_cqi, unit_index, unit_hp, new_rank, scrap_upgrades_str = tonumber(args[1]), tonumber(args[2]), tonumber(args[3]), tonumber(args[4]), args[5]
+		local commander_cqi, unit_index, unit_hp, unit_name, new_rank, scrap_upgrades_str = tonumber(args[1]), tonumber(args[2]), tonumber(args[3]), args[4], tonumber(args[5]), args[6]
 		local commander =  cm:get_character_by_cqi(commander_cqi)
 		local unit_interface = commander:military_force():unit_list():item_at(unit_index)
 		cm:set_unit_hp_to_unary_of_maximum(unit_interface, unit_hp)
 		cm:add_experience_to_unit(unit_interface, new_rank)
+
+		if unit_name and unit_name ~= "" then
+			mod.change_unit_name(unit_interface, unit_name)
+		end
 
 		if scrap_upgrades_str and scrap_upgrades_str ~= "" then
 			local scrap_upgrades = {}
@@ -1106,7 +1215,9 @@ core:add_listener(
 		cm:treasury_mod(faction:name(), -cost)
 		if pooled_res_key and pooled_res_key ~= "NONE" and res_cost and res_cost ~= 0 then
 			if pooled_res_key == "emp_prestige" then
-				cm:trigger_custom_incident(faction:name(), "pj_unit_upgrades_emp_prestige_incident", true, "payload{faction_pooled_resource_transaction{resource emp_prestige;factor wh2_dlc13_resource_factor_events_negative;amount "..tostring(-res_cost)..";};}");
+				cm:callback(function()
+					cm:trigger_custom_incident(faction:name(), "pj_unit_upgrades_emp_prestige_incident", true, "payload{faction_pooled_resource_transaction{resource emp_prestige;factor wh2_dlc13_resource_factor_events_negative;amount "..tostring(-res_cost)..";};}");
+				end, 3)
 			else
 				local resource_factor = mod.pooled_resource_factors[pooled_res_key] or "wh2_main_resource_factor_missions"
 				cm:pooled_resource_mod(faction:command_queue_index(), pooled_res_key, resource_factor, -res_cost)
@@ -1138,15 +1249,7 @@ core:add_listener(
 		local commander_cqi, unit_key, cost, pooled_res_key, res_cost = tonumber(args[1]), args[2], tonumber(args[3]), args[4], tonumber(args[5])
 
 		local faction = cm:get_character_by_cqi(commander_cqi):faction()
-		cm:treasury_mod(faction:name(), -cost)
-		if pooled_res_key and pooled_res_key ~= "NONE" and res_cost and res_cost ~= 0 then
-			if pooled_res_key == "emp_prestige" then
-				cm:trigger_custom_incident(faction:name(), "pj_unit_upgrades_emp_prestige_incident", true, "payload{faction_pooled_resource_transaction{resource emp_prestige;factor wh2_dlc13_resource_factor_events_negative;amount "..tostring(-res_cost)..";};}");
-			else
-				local resource_factor = mod.pooled_resource_factors[pooled_res_key] or "wh2_main_resource_factor_missions"
-				cm:pooled_resource_mod(faction:command_queue_index(), pooled_res_key, resource_factor, -res_cost)
-			end
-		end
+		mod.charge_upgrade_cost(faction, cost, pooled_res_key, res_cost)
 
 		if cm:get_faction(cm:get_local_faction_name(true)):command_queue_index() == faction_cqi then
 			return
@@ -1157,91 +1260,132 @@ core:add_listener(
 	true
 )
 
+mod.charge_upgrade_cost = function(faction, gold_cost, pooled_res_key, res_cost)
+	cm:treasury_mod(faction:name(), -gold_cost)
+	if pooled_res_key and pooled_res_key ~= "NONE" and res_cost and res_cost ~= 0 then
+		if pooled_res_key == "emp_prestige" then
+			cm:trigger_custom_incident(faction:name(), "pj_unit_upgrades_emp_prestige_incident", true, "payload{faction_pooled_resource_transaction{resource emp_prestige;factor wh2_dlc13_resource_factor_events_negative;amount "..tostring(-res_cost)..";};}");
+		else
+			local resource_factor = mod.pooled_resource_factors[pooled_res_key] or "wh2_main_resource_factor_missions"
+			cm:pooled_resource_mod(faction:command_queue_index(), pooled_res_key, resource_factor, -res_cost)
+		end
+	end
+end
+
+core:remove_listener("pj_upgrade_repeat_disband_unit_confirmation_trigger")
+core:add_listener(
+	"pj_upgrade_repeat_disband_unit_confirmation_trigger",
+	"RealTimeTrigger",
+	function(context)
+			return context.string == "pj_upgrade_repeat_disband_unit_confirmation"
+	end,
+	function()
+		local confirm = find_uicomponent(core:get_ui_root(),
+		"dialogue_box",
+		-- "both_group", "button_cancel"
+		"ok_group", "button_tick"
+		)
+		if confirm then
+			real_timer.unregister("pj_upgrade_repeat_disband_unit_confirmation")
+			confirm:SimulateLClick()
+		end
+	end,
+	true
+)
+
 mod.first_tick_cb = function()
 	--- When we click the unit upgrade button.
 	core:remove_listener('pj_unit_upgrades_on_clicked_retrain_button')
 	core:add_listener(
-	'pj_unit_upgrades_on_clicked_retrain_button',
-	'ComponentLClickUp',
-	function(context)
-		return context.string:starts_with("retrain_button_") and cm:whose_turn_is_it() == cm:get_local_faction_name(true)
-	end,
-	function(context)
-		if not mod.commander_cqi then
-			return
-		end
+		'pj_unit_upgrades_on_clicked_retrain_button',
+		'ComponentLClickUp',
+		function(context)
+			return context.string:starts_with("pj_retrain_button_") and cm:whose_turn_is_it() == cm:get_local_faction_name(true)
+		end,
+		function(context)
+			if not mod.commander_cqi then
+				return
+			end
 
-		local retrain_button_index = context.string:gsub("retrain_button_", "")
-		retrain_button_index = tonumber(retrain_button_index)
-		if not retrain_button_index then
-			dout("no retrain_button_index")
-			return
-		end
+			local retrain_button_index = context.string:gsub("pj_retrain_button_", "")
+			retrain_button_index = tonumber(retrain_button_index)
+			if not retrain_button_index then
+				dout("no retrain_button_index")
+				return
+			end
 
-		-- get the current hp of the unit we're gonna upgrade, save it for later
-		---@type CA_UNIT
-		local unit_to_upgrade
-		local commander = cm:get_character_by_cqi(mod.commander_cqi)
-		if commander and not commander:is_null_interface() then
-			unit_to_upgrade = commander:military_force():unit_list():item_at(mod.unit_index+mod.get_num_agents())
-			if unit_to_upgrade and not unit_to_upgrade:is_null_interface() then
-				mod.unit_health = unit_to_upgrade:percentage_proportion_of_full_strength()
+			-- get the current hp of the unit we're gonna upgrade, save it for later
+			---@type CA_UNIT
+			local unit_to_upgrade
+			local commander = cm:get_character_by_cqi(mod.commander_cqi)
+			if commander and not commander:is_null_interface() then
+				unit_to_upgrade = commander:military_force():unit_list():item_at(mod.unit_index+mod.get_num_agents())
+				if unit_to_upgrade and not unit_to_upgrade:is_null_interface() then
+					mod.unit_health = unit_to_upgrade:percentage_proportion_of_full_strength()
 
-				mod.unit_scrap_upgrades = {}
-				local unit_purchased_effect_list = unit_to_upgrade:get_unit_purchased_effects();
-				for i = 0, unit_purchased_effect_list:num_items() - 1 do
-					table.insert(mod.unit_scrap_upgrades, unit_purchased_effect_list:item_at(i):record_key())
+					mod.unit_scrap_upgrades = {}
+					local unit_purchased_effect_list = unit_to_upgrade:get_unit_purchased_effects();
+					for i = 0, unit_purchased_effect_list:num_items() - 1 do
+						table.insert(mod.unit_scrap_upgrades, unit_purchased_effect_list:item_at(i):record_key())
+					end
 				end
 			end
-		end
 
-		if not unit_to_upgrade then
-			dout("no unit_to_upgrade")
-			return
-		end
+			if not unit_to_upgrade then
+				dout("no unit_to_upgrade")
+				return
+			end
 
-		local unit_key_from = unit_to_upgrade:unit_key()
-		local unit_upgrades = mod.get_unit_upgrades(unit_key_from)
-		local unit_upgrade = unit_upgrades[retrain_button_index]
-		if not unit_upgrade then
-			dout("no unit_upgrade")
-			return
-		end
-		local new_unit_key = unit_upgrade[1]
-		if not new_unit_key then
-			dout("no new_unit_key")
-			return
-		end
+			local unit_key_from = unit_to_upgrade:unit_key()
+			local unit_upgrades = mod.get_unit_upgrades(unit_key_from)
+			local unit_upgrade = unit_upgrades[retrain_button_index]
+			if not unit_upgrade then
+				dout("no unit_upgrade")
+				return
+			end
+			local new_unit_key = unit_upgrade[1]
+			if not new_unit_key then
+				dout("no new_unit_key")
+				return
+			end
 
-		mod.add_new_unit(new_unit_key, commander, mod.unit_health, mod.unit_rank, unit_upgrade)
+			local ui_root = core:get_ui_root()
+			local unit_name_comp = find_uicomponent(
+				ui_root,
+				"layout",
+				"info_panel_holder",
+				"secondary_info_panel_holder",
+				"info_panel_background",
+				"UnitInfoPopup",
+				"top_section",
+				"tx_unit-type"
+			)
 
-		if unit_upgrade.payload then
-			local data = {
-				unit_key_to = new_unit_key,
-				unit_key_from = unit_key_from,
-			}
-			unit_upgrade.payload(commander, data)
-		end
+			mod.unit_name = unit_name_comp and unit_name_comp:GetStateText()
+			if mod.unit_name then
+				mod.unit_name = mod.get_unit_name_without_url_part(mod.unit_name)
+			end
 
-		--- disband the unit by simulating the steps needed for the disband unit button
-		--- keep running this callback until the disband dialogue box pops up
-		cm:repeat_callback(
-			function()
-				local confirm = find_uicomponent(core:get_ui_root(),
-				"dialogue_box",
-				-- "both_group", "button_cancel"
-				"ok_group", "button_tick"
-				)
-				if confirm then
-					cm:remove_callback("pj_upgrade_repeat_disband_unit_confirmation")
-					confirm:SimulateLClick()
-				end
-			end,
-			0.1,
-			"pj_upgrade_repeat_disband_unit_confirmation"
-		)
-	end,
-	true
+			local localized_unit_name = effect.get_localised_string("land_units_onscreen_name_"..(mod.main_unit_to_land_unit[unit_key_from] or unit_key_from))
+
+			if localized_unit_name == "" or not mod.unit_name or localized_unit_name == mod.unit_name then
+				mod.unit_name = ""
+			end
+
+			mod.add_new_unit(new_unit_key, commander, mod.unit_health, mod.unit_rank, mod.unit_name, unit_upgrade)
+			if rm then
+				mod.refresh_ttc(mod.commander_cqi, unit_key_from, new_unit_key)
+			end
+
+			if unit_upgrade.payload then
+				local data = {
+					unit_key_to = new_unit_key,
+					unit_key_from = unit_key_from,
+				}
+				unit_upgrade.payload(commander, data)
+			end
+		end,
+		true
 	)
 
 	--- Stop the repeating UI update when we unselect the army.
@@ -1253,9 +1397,22 @@ mod.first_tick_cb = function()
 			return context.string == "units_panel"
 		end,
 		function()
-			cm:remove_callback("pj_unit_upgrades_callback_id_1")
-			cm:remove_callback("pj_unit_upgrades_callback_id_2")
-			cm:remove_callback("pj_upgrade_repeat_disband_unit_confirmation")
+			real_timer.unregister("pj_unit_upgrades_callback_id_1")
+			real_timer.unregister("pj_unit_upgrades_callback_id_2")
+			real_timer.unregister("pj_upgrade_repeat_disband_unit_confirmation")
+		end,
+		true
+	)
+
+	core:remove_listener("pj_unit_upgrades_update_UI_trigger")
+	core:add_listener(
+		"pj_unit_upgrades_update_UI_trigger",
+		"RealTimeTrigger",
+		function(context)
+				return context.string == "pj_unit_upgrades_callback_id_1"
+		end,
+		function()
+			mod.update_UI()
 		end,
 		true
 	)
@@ -1275,6 +1432,7 @@ mod.first_tick_cb = function()
 			return is_land_unit
 		end,
 		function(context)
+			mod.last_mouse_over_card = context.string
 			local unit_index_str = context.string:gsub("LandUnit ", "")
 			local unit_index = tonumber(unit_index_str)
 			mod.unit_index = unit_index
@@ -1282,7 +1440,9 @@ mod.first_tick_cb = function()
 
 			mod.hide_retrain_buttons()
 
-			local exp = find_uicomponent(core:get_ui_root(),
+			local ui_root = core:get_ui_root()
+
+			local exp = find_uicomponent(ui_root,
 			"units_panel",
 			"main_units_panel",
 			"units",
@@ -1290,24 +1450,25 @@ mod.first_tick_cb = function()
 			"experience"
 			)
 			if exp then
-				local exp_text = exp:GetTooltipText()
-				if exp_text then
-					if exp_text ~= "" then
-						local unit_rank_str = exp_text:gsub("Unit rank ", "")
-						mod.unit_rank = tonumber(unit_rank_str)
-						if not mod.unit_rank then
-							mod.unit_rank = mod.get_rank_from_non_english_tooltip(exp_text)
-						end
-						if not mod.unit_rank then
-							mod.unit_rank = 0
-						end
-					end
-				end
+				mod.unit_rank = tonumber(exp:CurrentState() or 0)
 			end
 
 			mod.update_UI()
-			cm:remove_callback("pj_unit_upgrades_callback_id_1")
-			cm:repeat_callback(function() mod.update_UI() end, 0.1, "pj_unit_upgrades_callback_id_1")
+			real_timer.unregister("pj_unit_upgrades_callback_id_1")
+			real_timer.register_repeating("pj_unit_upgrades_callback_id_1", 0)
+		end,
+		true
+	)
+
+	core:remove_listener("pj_unit_upgrades_update_upgrade_icons_trigger")
+	core:add_listener(
+		"pj_unit_upgrades_update_upgrade_icons_trigger",
+		"RealTimeTrigger",
+		function(context)
+				return context.string == "pj_unit_upgrades_callback_id_2"
+		end,
+		function()
+			mod.update_upgrade_icons()
 		end,
 		true
 	)
@@ -1327,38 +1488,51 @@ mod.first_tick_cb = function()
 				and cm:whose_turn_is_it() == cm:get_local_faction_name(true)
 			if not is_player_char then
 				mod.hide_retrain_buttons()
-				cm:remove_callback("pj_unit_upgrades_callback_id_2")
+				real_timer.unregister("pj_unit_upgrades_callback_id_2")
 				mod.commander_cqi = nil
 				return
 			end
 
 			mod.commander_cqi = char:cqi()
 
-			mod.build_region_data()
+			local faction = char:faction()
+			mod.build_region_data(faction)
 
 			cm:callback(function()
 				local ui_root = core:get_ui_root()
 				local thb = find_uicomponent(ui_root, "units_panel", "main_units_panel", "tabgroup", "tab_horde_buildings")
-				if thb:Visible() then
+				if thb and thb:Visible() then
 					mod.build_horde_buildings()
 				end
-			end, 0.1)
 
-			cm:callback(function()
 				local army_name_label = find_uicomponent(
-					core:get_ui_root(),
+					ui_root,
 					"units_panel",
 					"main_units_panel",
 					"header",
 					"button_focus",
 					"dy_txt"
 				)
+
+				local commander_level_label = find_uicomponent(
+					ui_root,
+					"layout",
+					"info_panel_holder",
+					"primary_info_panel_holder",
+					"info_panel_background",
+					"CharacterInfoPopup",
+					"rank",
+					"skills",
+					"dy_rank"
+				)
+
+				mod.commander_level = commander_level_label and commander_level_label:GetStateText()
 				mod.commander_name = army_name_label and army_name_label:GetStateText()
-			end, 0.5)
+			end, 0.1)
 
 			mod.update_upgrade_icons()
-			cm:remove_callback("pj_unit_upgrades_callback_id_2")
-			cm:repeat_callback(function() mod.update_upgrade_icons() end, 0.1, "pj_unit_upgrades_callback_id_2")
+			real_timer.unregister("pj_unit_upgrades_callback_id_2")
+			real_timer.register_repeating("pj_unit_upgrades_callback_id_2", 0)
 		end,
 		true
 	)
@@ -1454,6 +1628,9 @@ mod.update_settings = function(mct)
 
 	mod.is_unit_upgrade_icon_disabled = my_mod:get_option_by_key("pj_upgrade_units_is_unit_upgrade_icon_disabled"):get_finalized_setting()
 	mod.we_ignore_unit_caps = my_mod:get_option_by_key("pj_upgrade_units_we_ignore_unit_caps"):get_finalized_setting()
+
+	mod.are_ai_upgrades_enabled = my_mod:get_option_by_key("pj_upgrade_units_ai_upgrades"):get_finalized_setting()
+	mod.max_upgrade_cost = my_mod:get_option_by_key("pj_upgrade_units_max_cost"):get_finalized_setting()
 end
 
 core:remove_listener("pj_upgrade_units_mct_init_cb")
@@ -1479,3 +1656,8 @@ core:add_listener(
 	end,
 	true
 )
+
+--- For debugging:
+-- add unit wh_main_emp_inf_swordsmen 20
+-- add unit wh2_main_hef_inf_archers_0 20
+-- add axp 9

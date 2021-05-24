@@ -351,15 +351,15 @@ local unit_upgrades = {
 		{"wh_dlc05_wef_inf_wildwood_rangers_0", 9},
 		{"wh_dlc05_wef_mon_treekin_0", 8, no_icon = true},
 	},
-	wh_dlc05_wef_inf_glade_guard_1 = {
-		{"wh_dlc05_wef_inf_glade_guard_2", 4, no_icon = true},
+	wh_dlc05_wef_inf_glade_guard_2 = {
+		{"wh_dlc05_wef_inf_glade_guard_1", 0, no_icon = true},
 		{"wh_dlc05_wef_inf_eternal_guard_1", 5, no_icon = true},
 		{"wh_dlc05_wef_inf_deepwood_scouts_0", 6},
 		{"wh_dlc05_wef_inf_wildwood_rangers_0", 8},
 		{"wh_dlc05_wef_mon_treekin_0", 8, no_icon = true},
 	},
-	wh_dlc05_wef_inf_glade_guard_2 = {
-		{"wh_dlc05_wef_inf_glade_guard_1", 0, no_icon = true},
+	wh_dlc05_wef_inf_glade_guard_1 = {
+		{"wh_dlc05_wef_inf_glade_guard_2", 4, no_icon = true},
 		{"wh_dlc05_wef_inf_eternal_guard_1", 5, no_icon = true},
 		{"wh_dlc05_wef_inf_deepwood_scouts_1", 7},
 		{"wh_dlc05_wef_inf_wildwood_rangers_0", 8},
