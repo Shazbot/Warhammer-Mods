@@ -141,14 +141,14 @@ local unit_upgrades = {
 		{"wh_dlc06_grn_inf_nasty_skulkers_0", 3},
 	},
 	wh_main_grn_inf_night_goblins = {
-		{"wh_main_grn_inf_night_goblin_fanatics", 3},
+		{"wh_main_grn_inf_night_goblin_fanatics", 6},
 	},
 	wh_main_grn_inf_orc_boyz = "wh_main_grn_inf_orc_big_uns",
 
 	wh_main_grn_inf_savage_orcs = "wh_main_grn_inf_savage_orc_big_uns",
 
 	wh_main_grn_inf_night_goblin_archers = {
-		{"wh_main_grn_inf_night_goblin_fanatics_1", 4},
+		{"wh_main_grn_inf_night_goblin_fanatics_1", 7},
 	},
 	wh_main_grn_cav_orc_boar_boyz = "wh_main_grn_cav_orc_boar_boy_big_uns",
 
@@ -344,22 +344,22 @@ local unit_upgrades = {
 		{"wh2_dlc16_wef_inf_bladesingers_0", 6},
 	},
 	wh_dlc05_wef_inf_glade_guard_0 = {
-		{"wh_dlc05_wef_inf_glade_guard_1", 3},
-		{"wh_dlc05_wef_inf_glade_guard_2", 5},
+		{"wh_dlc05_wef_inf_glade_guard_1", 5},
+		{"wh_dlc05_wef_inf_glade_guard_2", 3},
 		{"wh_dlc05_wef_inf_eternal_guard_1", 6},
 		{"wh_dlc05_wef_inf_deepwood_scouts_0", 7},
 		{"wh_dlc05_wef_inf_wildwood_rangers_0", 9},
 		{"wh_dlc05_wef_mon_treekin_0", 8, no_icon = true},
 	},
 	wh_dlc05_wef_inf_glade_guard_2 = {
-		{"wh_dlc05_wef_inf_glade_guard_1", 0, no_icon = true},
+		{"wh_dlc05_wef_inf_glade_guard_1", 4, no_icon = true},
 		{"wh_dlc05_wef_inf_eternal_guard_1", 5, no_icon = true},
 		{"wh_dlc05_wef_inf_deepwood_scouts_0", 6},
 		{"wh_dlc05_wef_inf_wildwood_rangers_0", 8},
 		{"wh_dlc05_wef_mon_treekin_0", 8, no_icon = true},
 	},
 	wh_dlc05_wef_inf_glade_guard_1 = {
-		{"wh_dlc05_wef_inf_glade_guard_2", 4, no_icon = true},
+		{"wh_dlc05_wef_inf_glade_guard_2", 0, no_icon = true},
 		{"wh_dlc05_wef_inf_eternal_guard_1", 5, no_icon = true},
 		{"wh_dlc05_wef_inf_deepwood_scouts_1", 7},
 		{"wh_dlc05_wef_inf_wildwood_rangers_0", 8},
