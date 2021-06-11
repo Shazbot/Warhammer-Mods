@@ -27,7 +27,11 @@ mod.num_unit_cards_selected = 0
 --- Default cost of a unit for any cost calculations.
 mod.default_unit_cost = 2500
 
+-- new unit rank after an upgrade is math.floor(old_rank*mod.rank_multiplier)
+mod.rank_multiplier = 0.5
+
 mod.max_upgrade_cost = mod.max_upgrade_cost or 500
+mod.we_enforce_building_requirements = false
 
 --- Building keys in each player horde army, gets built on CharacterSelected.
 --- Keys can sometimes be for example wh_main_horde_chaos_marauders_1wh_main_chs_chaos, so compare using string.starts_with
@@ -283,7 +287,7 @@ end
 
 ---@param commander CA_CHAR
 mod.adjust_new_unit = function(commander, old_units, unit_health, old_unit_rank, unit_name, is_hp_adjusted)
-	local new_rank = math.floor(old_unit_rank/2)
+	local new_rank = math.floor(old_unit_rank*mod.rank_multiplier)
 
 	local num_items_after = commander:military_force():unit_list():num_items()
 	for i=0, num_items_after-1 do
@@ -431,6 +435,12 @@ mod.is_unit_recruitable_in_horde = function(unit_key, commander_cqi)
 	return primary_recruitment_building_exists and additional_unit_building_req_exists
 end
 
+mod.unit_has_building_requirements = function(unit_key)
+	local unit_recruitment_buildings = mod.unit_recruitment_buildings[unit_key] or {}
+
+	return #unit_recruitment_buildings ~= 0
+end
+
 mod.is_unit_recruitable_in_province = function(unit_key, province_name, faction_key)
 	if not mod.faction_building_states then return end
 	local faction_building_state = mod.faction_building_states[faction_key]
@@ -484,6 +494,10 @@ mod.is_over_tabletop_caps = function(char_cqi, unit_key_to, unit_key_from)
 	local success, result = pcall(
 		function()
 			if rm then
+				if _G.sfo and not cm:get_saved_value("SFO_APPLY_CAPS") then
+					return
+				end
+
 				local rec_char = rm:get_character_by_cqi(char_cqi)
 				if rec_char then
 					local rec_unit = rm:get_unit(unit_key_to, rec_char)
@@ -613,15 +627,19 @@ mod.update_UI = function()
 
 			local cost_formula = mod.default_cost_formula
 			local upgrade_rank_adjustment = 0
+			local is_unit_recruitable = false
 			if province_name and mod.is_unit_recruitable_in_province(unit_key_to, province_name, faction_name) then
 				upgrade_rank_adjustment = -2
 				cost_formula = mod.local_rec_cost_formula
+				is_unit_recruitable = true
 			elseif is_horde and mod.is_unit_recruitable_in_horde(unit_key_to, mod.commander_cqi) then
 				upgrade_rank_adjustment = -2
 				cost_formula = mod.local_rec_cost_formula
+				is_unit_recruitable = true
 			elseif mod.is_unit_recruitable_anywhere(unit_key_to, faction_name) then
 				upgrade_rank_adjustment = -1
 				cost_formula = mod.global_rec_cost_formula
+				is_unit_recruitable = true
 			end
 			local calculated_upgrade_cost = cost_formula(mod.get_upgrade_cost(unit_key_to) - mod.get_upgrade_cost(unit_key_from))
 			-- if there is a flat cost set in the upgrade data use that, otherwise calculate it using a formula
@@ -679,6 +697,11 @@ mod.update_UI = function()
 			local is_over_the_unit_cap = false
 			if not mod.we_ignore_unit_caps then
 				is_over_the_unit_cap = local_faction_obj:unit_cap_remaining(unit_key_to) == 0
+			end
+
+			local are_building_requirements_missing = false
+			if mod.we_enforce_building_requirements then
+				are_building_requirements_missing = mod.unit_has_building_requirements(unit_key_to) and not is_unit_recruitable
 			end
 
 			local is_over_tabletop_caps = mod.is_over_tabletop_caps(mod.commander_cqi, unit_key_to, unit_key_from)
@@ -745,6 +768,10 @@ mod.update_UI = function()
 				local localized_must_have_tabletop_caps = effect.get_localised_string("pj_unit_upgrades_loc_over_the_tabletop_unit_cap")
 				new_tooltip_text = new_tooltip_text.."\n"..localized_must_have_tabletop_caps
 			end
+			if are_building_requirements_missing then
+				local localized_must_have_recruitment_building = effect.get_localised_string("pj_unit_upgrades_loc_recruitment_building_required")
+				new_tooltip_text = new_tooltip_text.."\n"..localized_must_have_recruitment_building
+			end
 
 			retrain_button:SetTooltipText(new_tooltip_text, true)
 
@@ -761,6 +788,7 @@ mod.update_UI = function()
 				or is_over_the_unit_cap
 				or are_too_many_units_selected
 				or is_over_tabletop_caps
+				or are_building_requirements_missing
 			then
 				retrain_button:SetState("inactive")
 			else
@@ -864,7 +892,7 @@ mod.add_new_unit = function(unit_key, commander, unit_health, unit_rank, unit_na
 	already_disbanded = true
 	delay_time = 1
 	if starting_num_items < 20 then
-		delay_time = 0.1
+		delay_time = 1
 	end
 
 	mod.disband_unit()
@@ -1024,10 +1052,17 @@ mod.update_upgrade_icons = function()
 					local show_upgrade_icon_for_current_unit_upgrade = false
 					local unit_key_to = unit_upgrade[1]
 					local upgrade_rank_adjustment = 0
+					local is_unit_recruitable = false
+					local is_horde = string.find(char:military_force():force_type():key(), "HORDE")
 					if province_name and mod.is_unit_recruitable_in_province(unit_key_to, province_name, faction_name) then
 						upgrade_rank_adjustment = -2
+						is_unit_recruitable = true
+					elseif is_horde and mod.is_unit_recruitable_in_horde(unit_key_to, mod.commander_cqi) then
+						upgrade_rank_adjustment = -2
+						is_unit_recruitable = true
 					elseif mod.is_unit_recruitable_anywhere(unit_key_to, faction_name) then
 						upgrade_rank_adjustment = -1
+						is_unit_recruitable = true
 					end
 
 					if unit_upgrade[2]+upgrade_rank_adjustment <= unit_rank and not unit_upgrade.no_icon then
@@ -1060,6 +1095,12 @@ mod.update_upgrade_icons = function()
 						local is_over_tabletop_caps = mod.is_over_tabletop_caps(mod.commander_cqi, unit_key_to, unit_key)
 						if is_over_tabletop_caps then
 							show_upgrade_icon_for_current_unit_upgrade = false
+						end
+
+						if mod.we_enforce_building_requirements then
+							if mod.unit_has_building_requirements(unit_key_to) and not is_unit_recruitable then
+								show_upgrade_icon_for_current_unit_upgrade = false
+							end
 						end
 
 						show_upgrade_icon = show_upgrade_icon or show_upgrade_icon_for_current_unit_upgrade
@@ -1631,6 +1672,8 @@ mod.update_settings = function(mct)
 
 	mod.are_ai_upgrades_enabled = my_mod:get_option_by_key("pj_upgrade_units_ai_upgrades"):get_finalized_setting()
 	mod.max_upgrade_cost = my_mod:get_option_by_key("pj_upgrade_units_max_cost"):get_finalized_setting()
+	mod.we_enforce_building_requirements = my_mod:get_option_by_key("pj_upgrade_units_enforce_building_requirements"):get_finalized_setting()
+	mod.rank_multiplier = my_mod:get_option_by_key("pj_upgrade_units_rank_multiplier"):get_finalized_setting()
 end
 
 core:remove_listener("pj_upgrade_units_mct_init_cb")
