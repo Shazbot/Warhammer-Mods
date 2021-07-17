@@ -310,17 +310,23 @@ local unit_upgrades = {
 	wh_dlc03_bst_inf_chaos_warhounds_0 = {
 		{"wh_dlc03_bst_inf_chaos_warhounds_1", 3},
 	},
+	wh2_dlc17_bst_cav_tuskgor_chariot_0 = {
+		{"wh_dlc03_bst_cav_razorgor_chariot_0", 5},
+	},
 	wh_dlc03_bst_inf_minotaurs_0 = {
 		{"wh_dlc03_bst_inf_minotaurs_1", 2, no_icon = true},
 		{"wh_dlc03_bst_inf_minotaurs_2", 4, no_icon = true},
+		{"wh2_dlc17_bst_mon_ghorgon_0", 8, no_icon = true},
 	},
 	wh_dlc03_bst_inf_minotaurs_1 = {
 		{"wh_dlc03_bst_inf_minotaurs_0", 0, no_icon = true},
 		{"wh_dlc03_bst_inf_minotaurs_2", 2, no_icon = true},
+		{"wh2_dlc17_bst_mon_ghorgon_0", 7, no_icon = true},
 	},
 	wh_dlc03_bst_inf_minotaurs_2 = {
 		{"wh_dlc03_bst_inf_minotaurs_0", 0, no_icon = true},
 		{"wh_dlc03_bst_inf_minotaurs_1", 0, no_icon = true},
+		{"wh2_dlc17_bst_mon_ghorgon_0", 7, no_icon = true},
 	},
 
 
@@ -588,6 +594,15 @@ local unit_upgrades = {
 
 
 
+	wh2_dlc17_lzd_mon_troglodon_0 = {
+		{"wh2_dlc17_lzd_cha_skink_oracle_troglodon_0", 9, no_icon = true, agent_type="runesmith", agent_subtype="wh2_dlc17_lzd_skink_oracle_troglodon"},
+	},
+	wh2_main_lzd_inf_chameleon_skinks_0 = {
+		{"wh2_dlc17_lzd_inf_chameleon_stalkers_0", 0},
+	},
+	wh2_dlc17_lzd_inf_chameleon_stalkers_0 = {
+		{"wh2_main_lzd_inf_chameleon_skinks_0", 0},
+	},
 	wh2_main_lzd_inf_skink_cohort_0 = {
 		{"wh2_main_lzd_inf_skink_cohort_1", 3},
 		{"wh2_main_lzd_inf_skink_skirmishers_0", 3},

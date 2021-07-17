@@ -30,6 +30,9 @@ mod.default_unit_cost = 2500
 -- new unit rank after an upgrade is math.floor(old_rank*mod.rank_multiplier)
 mod.rank_multiplier = 0.5
 
+-- add this value to the health multiplier after upgrading
+mod.health_adjustment = 0
+
 mod.max_upgrade_cost = mod.max_upgrade_cost or 500
 mod.we_enforce_building_requirements = false
 
@@ -96,6 +99,9 @@ for unit_key, unit_upgrades in pairs(require("pj_upgrade_units/unit_upgrades")) 
 	if type(unit_upgrades) == "string" then
 		unit_upgrades = {{unit_upgrades, 6}}
 	end
+	for _, upgrade in ipairs(unit_upgrades) do
+		upgrade.source = "default"
+	end
 	mod.unit_upgrades[unit_key] = unit_upgrades
 end
 
@@ -135,17 +141,11 @@ mod.hide_retrain_buttons = function()
 		"button_group_unit"
 	)
 	if button_group then
-		local index = 1
-		while(true) do
-			local retrain_button_id = "pj_retrain_button_"..tostring(index)
-			local retrain_button_addr = button_group:Find(retrain_button_id)
-			if not retrain_button_addr then
-				break
+		for i=0, button_group:ChildCount()-1 do
+			local child = UIComponent(button_group:Find(i))
+			if child and child:Id():starts_with("pj_retrain_button_") then
+				child:SetVisible(false)
 			end
-
-			local retrain = UIComponent(retrain_button_addr)
-			retrain:SetVisible(false)
-			index = index + 1
 		end
 	end
 end
@@ -182,11 +182,11 @@ end
 mod.get_hp_lost_percent = function(faction)
 	for substring, percent in pairs(mod.culture_hp_losses) do
 		if string.find(faction:culture(), substring) then
-			return percent
+			return percent+mod.health_adjustment
 		end
 	end
 
-	return 0.3
+	return 0.3+mod.health_adjustment
 end
 
 --- Unit hp percentage loss on upgrade for each culture.
@@ -295,7 +295,7 @@ mod.adjust_new_unit = function(commander, old_units, unit_health, old_unit_rank,
 		if not table_contains(old_units, unit_interface) then
 			local unit_hp = unit_health*0.01
 			if is_hp_adjusted then
-				unit_hp = unit_health*0.01*mod.get_hp_lost_percent(commander:faction())
+				unit_hp = math.max(0.01, unit_health*0.01*mod.get_hp_lost_percent(commander:faction()))
 				cm:set_unit_hp_to_unary_of_maximum(unit_interface, unit_hp)
 				cm:add_experience_to_unit(unit_interface, new_rank)
 			else
@@ -606,6 +606,10 @@ mod.update_UI = function()
 			end
 		end
 		if unit_upgrade.subculture and local_faction_obj:subculture() ~= unit_upgrade.subculture then
+			are_prerequisites_valid = false
+		end
+
+		if mod.are_default_upgrades_disabled and unit_upgrade.source and unit_upgrade.source == "default" then
 			are_prerequisites_valid = false
 		end
 
@@ -1082,6 +1086,10 @@ mod.update_upgrade_icons = function()
 							if not pooled_res or pooled_res:is_null_interface() or pooled_res:value() < unit_upgrade.pooled_res_amount then
 								show_upgrade_icon_for_current_unit_upgrade = false
 							end
+						end
+
+						if mod.are_default_upgrades_disabled and unit_upgrade.source and unit_upgrade.source == "default" then
+							show_upgrade_icon_for_current_unit_upgrade = false
 						end
 
 						local is_over_the_unit_cap = false
@@ -1671,9 +1679,11 @@ mod.update_settings = function(mct)
 	mod.we_ignore_unit_caps = my_mod:get_option_by_key("pj_upgrade_units_we_ignore_unit_caps"):get_finalized_setting()
 
 	mod.are_ai_upgrades_enabled = my_mod:get_option_by_key("pj_upgrade_units_ai_upgrades"):get_finalized_setting()
+	mod.are_default_upgrades_disabled = my_mod:get_option_by_key("pj_upgrade_units_disable_default_upgrades"):get_finalized_setting()
 	mod.max_upgrade_cost = my_mod:get_option_by_key("pj_upgrade_units_max_cost"):get_finalized_setting()
 	mod.we_enforce_building_requirements = my_mod:get_option_by_key("pj_upgrade_units_enforce_building_requirements"):get_finalized_setting()
 	mod.rank_multiplier = my_mod:get_option_by_key("pj_upgrade_units_rank_multiplier"):get_finalized_setting()
+	mod.health_adjustment = -my_mod:get_option_by_key("pj_upgrade_units_health_adjustment"):get_finalized_setting()
 end
 
 core:remove_listener("pj_upgrade_units_mct_init_cb")
